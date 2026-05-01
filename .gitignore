@@ -14,3 +14,7 @@ tmp/
 *.tsbuildinfo
 .idea/
 packages/api/prisma/migrations/**/migration_lock.toml
+
+# Large ML model files (use Git LFS or download separately)
+*.safetensors
+*.onnx.data
