@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { createHash } from 'crypto';
 
 /**
  * DMS provider interface — abstracts the Document Management System.
@@ -89,13 +90,17 @@ export class DmsService {
     };
 
     try {
+      // FR-024.A1: Generate deterministic ID for idempotent uploads
+      const deterministicId = this.generateDeterministicId(caseId, filename, content);
+      metadata.deterministicId = deterministicId;
+
       const dmsExternalId = await this.provider.upload(
         filename,
         content,
         metadata,
       );
       this.logger.log(
-        `Document uploaded to DMS: externalId=${dmsExternalId} for case ${caseId}`,
+        `Document uploaded to DMS: externalId=${dmsExternalId} (deterministicId=${deterministicId}) for case ${caseId}`,
       );
       return { dmsExternalId };
     } catch (error) {
@@ -104,6 +109,16 @@ export class DmsService {
       );
       throw error;
     }
+  }
+
+  /**
+   * FR-024.A1: Generate a deterministic DMS external ID using SHA-256.
+   * Ensures the same document always receives the same ID for idempotent uploads.
+   */
+  generateDeterministicId(caseId: string, filename: string, content: Buffer): string {
+    const contentHash = createHash('sha256').update(content).digest('hex');
+    const compositeKey = `${caseId}:${filename}:${contentHash}`;
+    return createHash('sha256').update(compositeKey).digest('hex');
   }
 
   /**

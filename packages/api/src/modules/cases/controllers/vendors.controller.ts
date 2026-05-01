@@ -20,6 +20,40 @@ import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Audited } from '../../audit/decorators/audited.decorator';
 import { VendorScorecardService } from '../services/vendor-scorecard.service';
 
+/** FR-081.A3: Fields visible to vendor-facing responses. */
+const VENDOR_VISIBLE_FIELDS = [
+  'id',
+  'caseNumber',
+  'status',
+  'priority',
+  'type',
+  'property',
+  'assignedVendorId',
+  'createdAt',
+  'tatDue',
+  'slaRemainingPercent',
+];
+
+/**
+ * FR-081.A3: Strip non-visible fields before returning vendor-facing responses.
+ * Returns a new object containing only the fields listed in VENDOR_VISIBLE_FIELDS.
+ */
+function filterFieldsForVendor(data: any): any {
+  if (Array.isArray(data)) {
+    return data.map((item) => filterFieldsForVendor(item));
+  }
+  if (data && typeof data === 'object') {
+    const filtered: Record<string, unknown> = {};
+    for (const field of VENDOR_VISIBLE_FIELDS) {
+      if (field in data) {
+        filtered[field] = data[field];
+      }
+    }
+    return filtered;
+  }
+  return data;
+}
+
 /**
  * Vendors Controller.
  *
@@ -43,8 +77,11 @@ export class VendorsController {
   @Get()
   @ApiOperation({ summary: 'List all active vendors with summary scores' })
   @ApiResponse({ status: 200, description: 'List of vendor summaries' })
-  async listVendors() {
-    const vendors = await this.vendorScorecardService.listVendorSummaries();
+  async listVendors(
+    /** FR-081.A2: Optional location-based vendor filter. */
+    @Query('location') location?: string,
+  ) {
+    const vendors = await this.vendorScorecardService.listVendorSummaries(location);
     return { data: vendors };
   }
 

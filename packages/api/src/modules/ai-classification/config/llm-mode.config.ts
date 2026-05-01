@@ -67,7 +67,7 @@ export function getLlmMode(): LlmMode {
  * If ONNX-only accuracy drops below 80%, the system should alert operators
  * to consider switching back to full LLM mode or triggering a manual drill.
  */
-export const LLM_OFF_ACCURACY_FLOOR = 80;
+export let LLM_OFF_ACCURACY_FLOOR = 80;
 
 @Injectable()
 export class LlmModeConfig {
@@ -97,6 +97,32 @@ export class LlmModeConfig {
   /** Whether classification should be skipped entirely (manual triage). */
   get isOff(): boolean {
     return this.mode === 'OFF';
+  }
+
+  /**
+   * FR-128.A3: Get the current accuracy floor.
+   */
+  getAccuracyFloor(): number {
+    return LLM_OFF_ACCURACY_FLOOR;
+  }
+
+  /**
+   * FR-128.A3: Tighten the accuracy floor by raising it to a new value.
+   * The new floor must be strictly greater than the current floor.
+   *
+   * @param newFloor - The new accuracy floor percentage (0-100)
+   * @throws Error if newFloor is not greater than the current floor
+   */
+  tightenAccuracyFloor(newFloor: number): void {
+    if (newFloor <= LLM_OFF_ACCURACY_FLOOR) {
+      throw new Error(
+        `New accuracy floor (${newFloor}) must be greater than current floor (${LLM_OFF_ACCURACY_FLOOR})`,
+      );
+    }
+    this.logger.log(
+      `Tightening accuracy floor: ${LLM_OFF_ACCURACY_FLOOR} -> ${newFloor}`,
+    );
+    LLM_OFF_ACCURACY_FLOOR = newFloor;
   }
 
   /**

@@ -16,11 +16,17 @@ export interface JitAccessToken {
  * Only active when NODE_ENV !== 'production'.
  * Grants temporary access tokens for pre-prod environments.
  */
+/** FR-124.A3: Maximum allowed elevation duration in minutes. */
+const MAX_ELEVATION_MINUTES = 120;
+
 @Injectable()
 export class JitAccessService {
   private readonly logger = new Logger(JitAccessService.name);
   private readonly tokens = new Map<string, JitAccessToken>();
   private readonly isEnabled: boolean;
+
+  /** FR-124.A3: Expose the max elevation constant for external reference. */
+  static readonly MAX_ELEVATION_MINUTES = MAX_ELEVATION_MINUTES;
 
   constructor(private readonly configService: ConfigService) {
     const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
@@ -54,8 +60,16 @@ export class JitAccessService {
       return null;
     }
 
+    // FR-124.A3: Clamp duration to MAX_ELEVATION_MINUTES
+    const clampedDuration = Math.min(durationMinutes, MAX_ELEVATION_MINUTES);
+    if (durationMinutes > MAX_ELEVATION_MINUTES) {
+      this.logger.warn(
+        `JIT elevation duration clamped: requested=${durationMinutes}m, max=${MAX_ELEVATION_MINUTES}m`,
+      );
+    }
+
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + durationMinutes * 60 * 1000);
+    const expiresAt = new Date(now.getTime() + clampedDuration * 60 * 1000);
     const token = crypto.randomUUID();
 
     const accessToken: JitAccessToken = {
@@ -110,6 +124,26 @@ export class JitAccessService {
       }
     }
     return revoked;
+  }
+
+  /**
+   * FR-124.A3: Get remaining minutes on a JIT elevation token.
+   * Returns null if the token is not found or already expired.
+   */
+  getRemainingMinutes(token: string): number | null {
+    if (!this.isEnabled) return null;
+
+    const record = this.tokens.get(token);
+    if (!record) return null;
+
+    const now = new Date();
+    if (record.expiresAt <= now) {
+      this.tokens.delete(token);
+      return null;
+    }
+
+    const remainingMs = record.expiresAt.getTime() - now.getTime();
+    return Math.ceil(remainingMs / (60 * 1000));
   }
 
   /**

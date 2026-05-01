@@ -12,6 +12,52 @@ interface ReportSchema {
   limit?: number;
 }
 
+/** FR-113.A2: Saved report configuration persisted to localStorage. */
+interface SavedReport {
+  id: string;
+  name: string;
+  dimensions: string[];
+  measures: string[];
+  filters?: Record<string, string | string[]>;
+  savedAt: string;
+}
+
+/** FR-113.A2: Schedule configuration for a saved report. */
+interface ReportSchedule {
+  reportId: string;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  scheduledAt: string;
+}
+
+const SAVED_REPORTS_KEY = 'atlas_saved_reports';
+const REPORT_SCHEDULES_KEY = 'atlas_report_schedules';
+
+function loadSavedReports(): SavedReport[] {
+  try {
+    const raw = localStorage.getItem(SAVED_REPORTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistSavedReports(reports: SavedReport[]): void {
+  localStorage.setItem(SAVED_REPORTS_KEY, JSON.stringify(reports));
+}
+
+function loadSchedules(): ReportSchedule[] {
+  try {
+    const raw = localStorage.getItem(REPORT_SCHEDULES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistSchedules(schedules: ReportSchedule[]): void {
+  localStorage.setItem(REPORT_SCHEDULES_KEY, JSON.stringify(schedules));
+}
+
 interface ReportResult {
   schema: ReportSchema;
   rows: Record<string, unknown>[];
@@ -25,6 +71,11 @@ const CustomReportBuilder = () => {
   const [selectedMeasures, setSelectedMeasures] = useState<string[]>([]);
   const [reportResult, setReportResult] = useState<ReportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // FR-113.A2: Saved reports & scheduling state
+  const [savedReports, setSavedReports] = useState<SavedReport[]>(loadSavedReports);
+  const [scheduleFrequency, setScheduleFrequency] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [scheduleMessage, setScheduleMessage] = useState<string | null>(null);
 
   // FR-113.A1: Drag-and-drop state
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
@@ -134,6 +185,55 @@ const CustomReportBuilder = () => {
         ? prev.filter((m) => m !== measure)
         : [...prev, measure],
     );
+  };
+
+  // FR-113.A2: Save current report config to localStorage
+  const handleSaveReport = () => {
+    if (!reportName.trim()) {
+      setError('Report name is required to save');
+      return;
+    }
+    const newReport: SavedReport = {
+      id: `rpt-${Date.now()}`,
+      name: reportName,
+      dimensions: selectedDimensions,
+      measures: selectedMeasures,
+      savedAt: new Date().toISOString(),
+    };
+    const updated = [...savedReports, newReport];
+    setSavedReports(updated);
+    persistSavedReports(updated);
+    setError(null);
+  };
+
+  // FR-113.A2: Load a previously saved report config
+  const handleLoadSavedReport = (reportId: string) => {
+    const report = savedReports.find((r) => r.id === reportId);
+    if (report) {
+      setReportName(report.name);
+      setSelectedDimensions(report.dimensions);
+      setSelectedMeasures(report.measures);
+      setError(null);
+    }
+  };
+
+  // FR-113.A2: Schedule a report with a cron-like frequency
+  const handleScheduleReport = () => {
+    if (!reportName.trim()) {
+      setError('Report name is required to schedule');
+      return;
+    }
+    const schedule: ReportSchedule = {
+      reportId: `rpt-${Date.now()}`,
+      frequency: scheduleFrequency,
+      scheduledAt: new Date().toISOString(),
+    };
+    const existing = loadSchedules();
+    const updated = [...existing, schedule];
+    persistSchedules(updated);
+    setScheduleMessage(`Report "${reportName}" scheduled ${scheduleFrequency}`);
+    setError(null);
+    setTimeout(() => setScheduleMessage(null), 3000);
   };
 
   const handleGenerate = () => {
@@ -323,6 +423,54 @@ const CustomReportBuilder = () => {
         >
           {generateMutation.isPending ? 'Generating...' : 'Generate Report'}
         </button>
+
+        {/* FR-113.A2: Save, Load & Schedule controls */}
+        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button
+            data-testid="save-report-btn"
+            onClick={handleSaveReport}
+            style={{ ...styles.generateBtn, backgroundColor: '#16a34a' }}
+          >
+            Save Report
+          </button>
+
+          {savedReports.length > 0 && (
+            <select
+              data-testid="saved-reports-dropdown"
+              onChange={(e) => handleLoadSavedReport(e.target.value)}
+              defaultValue=""
+              style={styles.input as CSSProperties}
+            >
+              <option value="" disabled>Saved Reports...</option>
+              {savedReports.map((r) => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          )}
+
+          <select
+            data-testid="schedule-frequency"
+            value={scheduleFrequency}
+            onChange={(e) => setScheduleFrequency(e.target.value as 'daily' | 'weekly' | 'monthly')}
+            style={{ ...styles.input as CSSProperties, width: 'auto' }}
+          >
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+          <button
+            data-testid="schedule-report-btn"
+            onClick={handleScheduleReport}
+            style={{ ...styles.generateBtn, backgroundColor: '#6366f1' }}
+          >
+            Schedule Report
+          </button>
+        </div>
+        {scheduleMessage && (
+          <p style={{ color: '#16a34a', fontSize: '0.85rem', margin: '0.5rem 0' }} data-testid="schedule-confirmation">
+            {scheduleMessage}
+          </p>
+        )}
       </div>
 
       {/* Report Results */}

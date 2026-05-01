@@ -19,6 +19,8 @@ export interface ReplyDraft {
   generatedAt: Date;
   approvedBy?: string;
   approvedAt?: Date;
+  /** FR-053.A1: Grounding citations — sources used to generate this draft. */
+  groundingSources?: Array<{ type: string; reference: string; snippet: string }>;
 }
 
 /**
@@ -51,6 +53,36 @@ export class SuggestedReplyService {
     caseId: string,
     context: ReplyContext,
   ): Promise<ReplyDraft> {
+    // FR-053.A1: Determine which template was used and build grounding citations
+    const templateName = context.case_type in {
+      VALUATION_REQUEST: 1, LEGAL_OPINION: 1, INSURANCE_RENEWAL: 1,
+    } ? context.case_type : 'DEFAULT';
+
+    const groundingSources: Array<{ type: string; reference: string; snippet: string }> = [
+      {
+        type: 'TEMPLATE',
+        reference: `reply-template:${templateName}`,
+        snippet: `Template selected for case_type="${context.case_type}"`,
+      },
+      {
+        type: 'CONTEXT_FIELD',
+        reference: 'context.subject',
+        snippet: context.subject,
+      },
+      {
+        type: 'CONTEXT_FIELD',
+        reference: 'context.case_type',
+        snippet: context.case_type,
+      },
+    ];
+    if (context.body) {
+      groundingSources.push({
+        type: 'CONTEXT_FIELD',
+        reference: 'context.body',
+        snippet: context.body.substring(0, 200),
+      });
+    }
+
     const draft: ReplyDraft = {
       id: uuidv4(),
       caseId,
@@ -58,6 +90,7 @@ export class SuggestedReplyService {
       body: this.generateTemplateBody(context),
       status: 'PROPOSED',
       generatedAt: new Date(),
+      groundingSources,
     };
 
     this.drafts.set(draft.id, draft);

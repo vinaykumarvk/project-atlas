@@ -86,12 +86,27 @@ describe('IntakeOrchestratorService — Email Isolation (FR-129.A1)', () => {
     }
   });
 
-  it('should skip isolation when ALLOWED_DEV_DOMAINS is empty', async () => {
+  it('should default to synthetic-only domains when ALLOWED_DEV_DOMAINS is empty (FR-129.A1)', async () => {
     process.env.NODE_ENV = 'development';
     process.env.ALLOWED_DEV_DOMAINS = '';
     mockPrisma.emailIngest.findUnique.mockResolvedValue({
       id: 'e1',
       from_address: 'user@any-domain.com',
+      subject: 'Test',
+      body_text: 'body',
+      thread_context: null,
+    });
+
+    // Non-synthetic domains should be rejected when ALLOWED_DEV_DOMAINS is empty
+    await expect(service.orchestrate('e1')).rejects.toThrow('email isolation');
+  });
+
+  it('should allow synthetic domain emails when ALLOWED_DEV_DOMAINS is empty', async () => {
+    process.env.NODE_ENV = 'development';
+    process.env.ALLOWED_DEV_DOMAINS = '';
+    mockPrisma.emailIngest.findUnique.mockResolvedValue({
+      id: 'e1',
+      from_address: 'user@synthetic.atlas.dev',
       subject: 'Test',
       body_text: 'body',
       thread_context: null,

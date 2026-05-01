@@ -15,6 +15,10 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+vi.mock('../auth', () => ({
+  useAuth: () => ({ user: { id: 'test', email: 'test@test.com', roles: ['SYS_ADMIN'] }, isAuthenticated: true, isLoading: false, accessToken: null, login: vi.fn(), logout: vi.fn(), refreshToken: vi.fn() }),
+}));
+
 // ---------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------

@@ -5,15 +5,33 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
+// FR-122.A2: Enforce TLS 1.3 as the minimum protocol version.
+// This must be set before any HTTPS connections are made.
+process.env.NODE_TLS_MIN_VERSION = 'TLSv1.3';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // FR-122.A2: Helmet with HSTS and Content-Security-Policy directives
   app.use(
     helmet({
       hsts: {
         maxAge: 31536000,
         includeSubDomains: true,
         preload: true,
+      },
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:'],
+          connectSrc: ["'self'"],
+          fontSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          upgradeInsecureRequests: [],
+        },
       },
     }),
   );

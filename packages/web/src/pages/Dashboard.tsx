@@ -14,6 +14,7 @@ import type {
   TrendDataPoint,
 } from '../hooks/useDashboard';
 import { apiGet } from '../api/client';
+import { useAuth } from '../auth';
 
 // --- At-Risk Prediction types (FR-062.A3) ---
 interface BreachPrediction {
@@ -229,9 +230,31 @@ const trendArrows: Record<string, string> = {
   STABLE: 'Trend Stable',
 };
 
+/** FR-110.A2: Map of widget IDs to the roles allowed to view them. */
+const WIDGET_ROLE_MAP: Record<string, string[]> = {
+  'sla-compliance': ['COMPLIANCE_OFFICER', 'SYS_ADMIN', 'LEAD'],
+  'accuracy-trend': ['SYS_ADMIN', 'LEAD', 'DATA_ANALYST'],
+  'entity-f1-metrics': ['SYS_ADMIN', 'DATA_ANALYST'],
+  'override-rate': ['SYS_ADMIN', 'COMPLIANCE_OFFICER', 'DATA_ANALYST'],
+  'low-confidence-volume': ['SYS_ADMIN', 'COMPLIANCE_OFFICER', 'DATA_ANALYST'],
+  'at-risk-predictions': ['SYS_ADMIN', 'LEAD', 'OFFICER', 'COMPLIANCE_OFFICER'],
+  'workload-forecast': ['SYS_ADMIN', 'LEAD'],
+  'business-value': ['SYS_ADMIN', 'LEAD', 'COMPLIANCE_OFFICER'],
+};
+
+/** FR-110.A2: Check whether the current user has at least one of the required roles for a widget. */
+function canViewWidget(widgetId: string, userRoles: string[]): boolean {
+  const allowedRoles = WIDGET_ROLE_MAP[widgetId];
+  if (!allowedRoles) return true; // No restriction — visible to all
+  return userRoles.some((role) => allowedRoles.includes(role));
+}
+
 const DashboardPage = () => {
   const demo = isDemoMode();
   const navigate = useNavigate();
+  // FR-110.A2: Role-based widget visibility
+  const { user } = useAuth();
+  const userRoles: string[] = user?.roles ?? ['SYS_ADMIN'];
 
   // Live data hooks — called unconditionally (rules of hooks)
   const { data: metrics, isLoading, isError, error } = useDashboardMetrics();
@@ -536,8 +559,8 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* SLA Compliance by Dimension — FR-111 A2 */}
-      <div style={styles.panel}>
+      {/* SLA Compliance by Dimension — FR-111 A2 (FR-110.A2: role-gated) */}
+      {canViewWidget('sla-compliance', userRoles) && <div style={styles.panel}>
         <h3 style={styles.panelTitle}>SLA Compliance</h3>
         <div style={styles.complianceGrid}>
           <div>
@@ -608,7 +631,7 @@ const DashboardPage = () => {
             )}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Trend Data — FR-111 A4 with 30/60/90 day toggle */}
       <div style={styles.panel}>
@@ -668,8 +691,8 @@ const DashboardPage = () => {
         )}
       </div>
 
-      {/* Classification Accuracy Trend — FR-110.A3 */}
-      <div style={styles.panel} data-testid="accuracy-trend">
+      {/* Classification Accuracy Trend — FR-110.A3 (FR-110.A2: role-gated) */}
+      {canViewWidget('accuracy-trend', userRoles) && <div style={styles.panel} data-testid="accuracy-trend">
         <h3 style={styles.panelTitle}>Classification Accuracy</h3>
         {accuracyTrendData.length === 0 ? (
           <p style={styles.placeholderText}>No accuracy data available</p>
@@ -701,10 +724,10 @@ const DashboardPage = () => {
             </table>
           </div>
         )}
-      </div>
+      </div>}
 
-      {/* Entity F1 Metrics — FR-161 */}
-      <div style={styles.panel} data-testid="entity-f1-metrics">
+      {/* Entity F1 Metrics — FR-161 (FR-110.A2: role-gated) */}
+      {canViewWidget('entity-f1-metrics', userRoles) && <div style={styles.panel} data-testid="entity-f1-metrics">
         <h3 style={styles.panelTitle}>Entity F1 Metrics</h3>
         {Object.keys(entityF1Data).length === 0 ? (
           <p style={styles.placeholderText}>No entity F1 data available</p>
@@ -738,10 +761,10 @@ const DashboardPage = () => {
             </table>
           </div>
         )}
-      </div>
+      </div>}
 
-      {/* Override Rate — FR-161 */}
-      <div style={styles.panel} data-testid="override-rate">
+      {/* Override Rate — FR-161 (FR-110.A2: role-gated) */}
+      {canViewWidget('override-rate', userRoles) && <div style={styles.panel} data-testid="override-rate">
         <h3 style={styles.panelTitle}>Override Rate</h3>
         <div style={styles.cardsGrid}>
           <div style={styles.card}>
@@ -759,10 +782,10 @@ const DashboardPage = () => {
             <span style={{ ...styles.cardValue, color: '#6366f1' }}>{overrideRateData.totalPredictions}</span>
           </div>
         </div>
-      </div>
+      </div>}
 
-      {/* Low-Confidence Volume — FR-161 */}
-      <div style={styles.panel} data-testid="low-confidence-volume">
+      {/* Low-Confidence Volume — FR-161 (FR-110.A2: role-gated) */}
+      {canViewWidget('low-confidence-volume', userRoles) && <div style={styles.panel} data-testid="low-confidence-volume">
         <h3 style={styles.panelTitle}>Low-Confidence Volume</h3>
         {lowConfidenceData.length === 0 ? (
           <p style={styles.placeholderText}>No low-confidence data available</p>
@@ -788,10 +811,10 @@ const DashboardPage = () => {
             </table>
           </div>
         )}
-      </div>
+      </div>}
 
-      {/* At-Risk Predictions — FR-062.A3 */}
-      <div style={styles.panel} data-testid="at-risk-predictions">
+      {/* At-Risk Predictions — FR-062.A3 (FR-110.A2: role-gated) */}
+      {canViewWidget('at-risk-predictions', userRoles) && <div style={styles.panel} data-testid="at-risk-predictions">
         <h3 style={styles.panelTitle}>At-Risk Predictions</h3>
         {atRiskPredictions.length === 0 ? (
           <p style={styles.placeholderText}>No at-risk cases detected</p>
@@ -825,10 +848,10 @@ const DashboardPage = () => {
             </table>
           </div>
         )}
-      </div>
+      </div>}
 
-      {/* Workload Forecast — FR-112.A3 */}
-      <div style={styles.panel} data-testid="workload-forecast">
+      {/* Workload Forecast — FR-112.A3 (FR-110.A2: role-gated) */}
+      {canViewWidget('workload-forecast', userRoles) && <div style={styles.panel} data-testid="workload-forecast">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h3 style={{ ...styles.panelTitle, margin: 0 }}>Workload Forecast</h3>
           {forecastData && (
@@ -872,10 +895,10 @@ const DashboardPage = () => {
             </table>
           </div>
         )}
-      </div>
+      </div>}
 
-      {/* Business Value Command Center — FR-158 */}
-      <div style={styles.panel} data-testid="business-value">
+      {/* Business Value Command Center — FR-158 (FR-110.A2: role-gated) */}
+      {canViewWidget('business-value', userRoles) && <div style={styles.panel} data-testid="business-value">
         <h3 style={styles.panelTitle}>Business Value Command Center</h3>
         <div style={styles.threeColumnGrid}>
           {/* Disbursal Blockers */}
@@ -935,7 +958,7 @@ const DashboardPage = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 };

@@ -142,6 +142,8 @@ interface Attachment {
   documentType?: string;
   docTypeConfidence?: number;
   ocrText?: string;
+  /** FR-021.A2: Word-level OCR confidence scores. */
+  wordConfidences?: Array<{ word: string; confidence: number }>;
   downloadUrl?: string;
   dms_external_id?: string;
 }
@@ -227,6 +229,20 @@ const MOCK_ATTACHMENTS: Attachment[] = [
     documentType: 'LEGAL_OPINION',
     docTypeConfidence: 0.87,
     ocrText: 'Property Title Search Report\n\nSubject Property: 123 Main St, Sydney NSW 2000\nTitle Reference: DP123456\nOwner: Acme Corp Pty Ltd\n\nNo encumbrances found.',
+    wordConfidences: [
+      { word: 'Property', confidence: 0.98 }, { word: 'Title', confidence: 0.97 },
+      { word: 'Search', confidence: 0.95 }, { word: 'Report', confidence: 0.96 },
+      { word: 'Subject', confidence: 0.94 }, { word: 'Property:', confidence: 0.91 },
+      { word: '123', confidence: 0.99 }, { word: 'Main', confidence: 0.93 },
+      { word: 'St,', confidence: 0.88 }, { word: 'Sydney', confidence: 0.92 },
+      { word: 'NSW', confidence: 0.97 }, { word: '2000', confidence: 0.99 },
+      { word: 'Title', confidence: 0.96 }, { word: 'Reference:', confidence: 0.90 },
+      { word: 'DP123456', confidence: 0.85 }, { word: 'Owner:', confidence: 0.93 },
+      { word: 'Acme', confidence: 0.78 }, { word: 'Corp', confidence: 0.82 },
+      { word: 'Pty', confidence: 0.75 }, { word: 'Ltd', confidence: 0.88 },
+      { word: 'No', confidence: 0.97 }, { word: 'encumbrances', confidence: 0.65 },
+      { word: 'found.', confidence: 0.91 },
+    ],
     downloadUrl: '#',
     dms_external_id: 'DMS-DOC-20260427-002',
   },
@@ -243,6 +259,16 @@ const MOCK_ATTACHMENTS: Attachment[] = [
     documentType: 'VALUATION_REPORT',
     docTypeConfidence: 0.93,
     ocrText: 'Valuation Order Form\n\nLoan Reference: LN-2026-00451\nProperty: 123 Main St, Sydney NSW 2000\nValuation Type: Full',
+    wordConfidences: [
+      { word: 'Valuation', confidence: 0.96 }, { word: 'Order', confidence: 0.94 },
+      { word: 'Form', confidence: 0.98 }, { word: 'Loan', confidence: 0.93 },
+      { word: 'Reference:', confidence: 0.89 }, { word: 'LN-2026-00451', confidence: 0.62 },
+      { word: 'Property:', confidence: 0.91 }, { word: '123', confidence: 0.99 },
+      { word: 'Main', confidence: 0.92 }, { word: 'St,', confidence: 0.87 },
+      { word: 'Sydney', confidence: 0.95 }, { word: 'NSW', confidence: 0.97 },
+      { word: '2000', confidence: 0.99 }, { word: 'Valuation', confidence: 0.94 },
+      { word: 'Type:', confidence: 0.90 }, { word: 'Full', confidence: 0.96 },
+    ],
     downloadUrl: '#',
   },
 ];
@@ -1799,21 +1825,71 @@ function AttachmentsTab({ onPreview }: { onPreview?: (att: Attachment) => void }
                   OCR Text Preview: {selectedAttachment.name}
                 </h3>
                 {selectedAttachment.ocrText ? (
-                  <pre style={{
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    fontSize: '0.8rem',
-                    lineHeight: 1.5,
-                    backgroundColor: '#f8fafc',
-                    padding: '1rem',
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border)',
-                    maxHeight: '400px',
-                    overflowY: 'auto',
-                    margin: 0,
-                  }}>
-                    {selectedAttachment.ocrText}
-                  </pre>
+                  <>
+                    {/* FR-021.A2: Word-level confidence display */}
+                    {selectedAttachment.wordConfidences && selectedAttachment.wordConfidences.length > 0 ? (
+                      <div
+                        data-testid="ocr-word-confidence"
+                        style={{
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          fontSize: '0.8rem',
+                          lineHeight: 1.8,
+                          backgroundColor: '#f8fafc',
+                          padding: '1rem',
+                          borderRadius: '6px',
+                          border: '1px solid var(--color-border)',
+                          maxHeight: '400px',
+                          overflowY: 'auto',
+                          margin: 0,
+                        }}
+                      >
+                        {selectedAttachment.wordConfidences.map((wc, idx) => (
+                          <span
+                            key={idx}
+                            title={`Confidence: ${(wc.confidence * 100).toFixed(0)}%`}
+                            style={{
+                              backgroundColor:
+                                wc.confidence >= 0.9 ? '#dcfce7'
+                                : wc.confidence >= 0.7 ? '#fef9c3'
+                                : '#fecaca',
+                              color:
+                                wc.confidence >= 0.9 ? '#16a34a'
+                                : wc.confidence >= 0.7 ? '#ca8a04'
+                                : '#dc2626',
+                              padding: '0.1rem 0.25rem',
+                              borderRadius: '3px',
+                              marginRight: '0.3rem',
+                              fontWeight: wc.confidence < 0.7 ? 700 : 400,
+                            }}
+                          >
+                            {wc.word}
+                          </span>
+                        ))}
+                        <div style={{ marginTop: '0.75rem', fontSize: '0.7rem', color: '#94a3b8' }}>
+                          <span style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '0.1rem 0.35rem', borderRadius: '3px', marginRight: '0.5rem' }}>High (&ge;90%)</span>
+                          <span style={{ backgroundColor: '#fef9c3', color: '#ca8a04', padding: '0.1rem 0.35rem', borderRadius: '3px', marginRight: '0.5rem' }}>Medium (&ge;70%)</span>
+                          <span style={{ backgroundColor: '#fecaca', color: '#dc2626', padding: '0.1rem 0.35rem', borderRadius: '3px' }}>Low (&lt;70%)</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <pre style={{
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        fontSize: '0.8rem',
+                        lineHeight: 1.5,
+                        backgroundColor: '#f8fafc',
+                        padding: '1rem',
+                        borderRadius: '6px',
+                        border: '1px solid var(--color-border)',
+                        maxHeight: '400px',
+                        overflowY: 'auto',
+                        margin: 0,
+                      }}>
+                        {selectedAttachment.ocrText}
+                      </pre>
+                    )}
+                  </>
                 ) : (
                   <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
                     No OCR text available for this attachment.

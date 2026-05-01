@@ -76,4 +76,57 @@ export class VolumeAnomalyService {
       .slice(0, days)
       .map(([date, volume]) => ({ date, volume }));
   }
+
+  /**
+   * FR-112.A1: Simple trend forecasting using least-squares linear regression
+   * on historical daily volumes.
+   *
+   * @param days - Number of days to forecast into the future
+   * @returns Array of { date, predicted } for each forecasted day
+   */
+  forecast(days: number): { date: string; predicted: number }[] {
+    const history = Array.from(this.dailyVolumes.entries())
+      .sort(([a], [b]) => a.localeCompare(b));
+
+    if (history.length < 2) {
+      return [];
+    }
+
+    // Least-squares linear regression: y = slope * x + intercept
+    const n = history.length;
+    let sumX = 0;
+    let sumY = 0;
+    let sumXY = 0;
+    let sumX2 = 0;
+
+    for (let i = 0; i < n; i++) {
+      const x = i;
+      const y = history[i][1];
+      sumX += x;
+      sumY += y;
+      sumXY += x * y;
+      sumX2 += x * x;
+    }
+
+    const denominator = n * sumX2 - sumX * sumX;
+    const slope = denominator === 0 ? 0 : (n * sumXY - sumX * sumY) / denominator;
+    const intercept = (sumY - slope * sumX) / n;
+
+    // Forecast future days
+    const lastDate = new Date(history[history.length - 1][0]);
+    const results: { date: string; predicted: number }[] = [];
+
+    for (let d = 1; d <= days; d++) {
+      const futureDate = new Date(lastDate);
+      futureDate.setDate(futureDate.getDate() + d);
+      const x = n - 1 + d; // continuation of the index series
+      const predicted = Math.max(0, Math.round(slope * x + intercept));
+      results.push({
+        date: futureDate.toISOString().split('T')[0],
+        predicted,
+      });
+    }
+
+    return results;
+  }
 }

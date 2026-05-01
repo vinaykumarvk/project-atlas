@@ -6,6 +6,7 @@ export enum NotificationChannel {
   WHATSAPP = 'WHATSAPP',
   SLACK = 'SLACK',
   PUSH = 'PUSH',
+  BROWSER_PUSH = 'BROWSER_PUSH',
 }
 
 export interface NotificationTemplate {

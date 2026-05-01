@@ -434,7 +434,7 @@ th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f4f4f4}</
   /**
    * List all active vendors with summary scorecard data.
    */
-  async listVendorSummaries(): Promise<
+  async listVendorSummaries(location?: string): Promise<
     Array<{
       vendorId: string;
       vendorName: string;
@@ -445,8 +445,13 @@ th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f4f4f4}</
       isActive: boolean;
     }>
   > {
+    const where: any = { is_active: true };
+    // FR-081.A2: Filter by location if provided
+    if (location) {
+      where.service_regions = { has: location };
+    }
     const vendors = await this.prisma.vendorMaster.findMany({
-      where: { is_active: true },
+      where,
       orderBy: { vendor_name: 'asc' },
     });
 

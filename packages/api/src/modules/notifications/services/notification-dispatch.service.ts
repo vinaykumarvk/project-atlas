@@ -175,6 +175,10 @@ export class NotificationDispatchService {
     this.channelSenders.set(NotificationChannel.PUSH, async (_recipient, _subject, _body) => {
       return true;
     });
+    // FR-100.A1: BROWSER_PUSH channel sender (stub — Web Push API integration point)
+    this.channelSenders.set(NotificationChannel.BROWSER_PUSH, async (_recipient, _subject, _body) => {
+      return true;
+    });
   }
 
   /**

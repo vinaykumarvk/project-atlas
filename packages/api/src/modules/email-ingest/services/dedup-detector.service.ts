@@ -5,8 +5,10 @@ export interface DedupResult {
   isDuplicate: boolean;
   similarity: number; // 0-1
   matchedId?: string;
-  method: 'EXACT' | 'SIMHASH' | 'NONE';
+  method: 'EXACT' | 'SIMHASH' | 'EMBEDDING' | 'NONE';
 }
+
+export type DedupMethod = 'SIMHASH' | 'EMBEDDING';
 
 @Injectable()
 export class DedupDetectorService {
@@ -14,6 +16,10 @@ export class DedupDetectorService {
   private readonly hashStore = new Map<string, { simhash: bigint; id: string }>();
   private readonly SIMILARITY_THRESHOLD = 0.9; // 90% similarity
   private readonly exactHashStore = new Map<string, string>();
+  private readonly embeddingStore = new Map<string, { vector: Map<string, number>; id: string }>();
+
+  /** FR-014.A2: Configurable dedup method — 'SIMHASH' (default) or 'EMBEDDING' */
+  dedupMethod: DedupMethod = 'SIMHASH';
 
   /**
    * Compute SimHash of a text document.
@@ -42,6 +48,44 @@ export class DedupDetectorService {
     }
 
     return simhash;
+  }
+
+  /**
+   * FR-014.A2: Compute a TF-IDF term-frequency vector for embedding-based dedup.
+   * Returns a Map of token -> TF-IDF weight.
+   */
+  computeEmbeddingHash(text: string): Map<string, number> {
+    const tokens = this.tokenize(text);
+    const tf = new Map<string, number>();
+    for (const token of tokens) {
+      tf.set(token, (tf.get(token) || 0) + 1);
+    }
+    // Normalize by document length
+    for (const [token, count] of tf) {
+      tf.set(token, count / Math.max(tokens.length, 1));
+    }
+    return tf;
+  }
+
+  /**
+   * FR-014.A2: Cosine similarity between two TF-IDF vectors.
+   */
+  cosineSimilarity(a: Map<string, number>, b: Map<string, number>): number {
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (const [token, weightA] of a) {
+      normA += weightA * weightA;
+      const weightB = b.get(token) || 0;
+      dotProduct += weightA * weightB;
+    }
+    for (const [, weightB] of b) {
+      normB += weightB * weightB;
+    }
+
+    const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+    return denominator === 0 ? 0 : dotProduct / denominator;
   }
 
   /**
@@ -76,18 +120,29 @@ export class DedupDetectorService {
       return { isDuplicate: true, similarity: 1.0, matchedId: exactMatch, method: 'EXACT' };
     }
 
-    // Fall through to SimHash for near-duplicate detection
-    const simhash = this.computeSimHash(text);
-
-    for (const [, stored] of this.hashStore) {
-      const sim = this.similarity(simhash, stored.simhash);
-      if (sim >= this.SIMILARITY_THRESHOLD) {
-        return { isDuplicate: true, similarity: sim, matchedId: stored.id, method: 'SIMHASH' };
+    // FR-014.A2: Use configured dedup method for near-duplicate detection
+    if (this.dedupMethod === 'EMBEDDING') {
+      const vector = this.computeEmbeddingHash(text);
+      for (const [, stored] of this.embeddingStore) {
+        const sim = this.cosineSimilarity(vector, stored.vector);
+        if (sim >= this.SIMILARITY_THRESHOLD) {
+          return { isDuplicate: true, similarity: sim, matchedId: stored.id, method: 'EMBEDDING' };
+        }
       }
+      this.embeddingStore.set(id, { vector, id });
+    } else {
+      // Fall through to SimHash for near-duplicate detection
+      const simhash = this.computeSimHash(text);
+      for (const [, stored] of this.hashStore) {
+        const sim = this.similarity(simhash, stored.simhash);
+        if (sim >= this.SIMILARITY_THRESHOLD) {
+          return { isDuplicate: true, similarity: sim, matchedId: stored.id, method: 'SIMHASH' };
+        }
+      }
+      this.hashStore.set(id, { simhash, id });
     }
 
-    // Store this document's hash
-    this.hashStore.set(id, { simhash, id });
+    // Store exact hash
     this.exactHashStore.set(sha256, id);
     return { isDuplicate: false, similarity: 0, method: 'NONE' };
   }
@@ -102,6 +157,7 @@ export class DedupDetectorService {
   clear(): void {
     this.hashStore.clear();
     this.exactHashStore.clear();
+    this.embeddingStore.clear();
   }
 
   getStoredCount(): number {

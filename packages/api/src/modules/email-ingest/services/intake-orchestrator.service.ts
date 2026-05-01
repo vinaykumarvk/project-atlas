@@ -10,6 +10,9 @@ import { IngestStatus } from '../types';
 import { CaseRecord, CaseStatus } from '../../cases/types';
 import { ClassificationResult } from '../../ai-classification/types';
 
+/** FR-129.A1: Default synthetic-only domains for non-prod email isolation. */
+const SYNTHETIC_ONLY_DOMAINS = ['synthetic.atlas.dev', 'test.atlas.dev'];
+
 export interface OrchestrateResult {
   ingestId: string;
   classification: ClassificationResult;
@@ -63,8 +66,10 @@ export class IntakeOrchestratorService {
 
     // FR-129.A1,A4: Dev/UAT email isolation — only process emails from allowed domains in non-prod
     if (process.env.NODE_ENV !== 'production') {
-      const allowedDomains = (process.env.ALLOWED_DEV_DOMAINS || '').split(',').map(d => d.trim()).filter(Boolean);
-      if (allowedDomains.length > 0 && ingestRecord.from_address) {
+      const envDomains = (process.env.ALLOWED_DEV_DOMAINS || '').split(',').map(d => d.trim()).filter(Boolean);
+      // FR-129.A1: If ALLOWED_DEV_DOMAINS is empty, default to synthetic-only domains
+      const allowedDomains = envDomains.length > 0 ? envDomains : SYNTHETIC_ONLY_DOMAINS;
+      if (ingestRecord.from_address) {
         const senderDomain = ingestRecord.from_address.split('@')[1]?.toLowerCase();
         if (senderDomain && !allowedDomains.includes(senderDomain)) {
           this.logger.warn(

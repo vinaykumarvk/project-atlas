@@ -128,4 +128,36 @@ export class SloBurnRateService {
     const result = this.computeBurnRate(sloName);
     return result !== null && result.alerting;
   }
+
+  /**
+   * Returns `true` only when every registered SLO has consumed less than
+   * 90 % of its error budget.  This acts as a release gate: deployments
+   * should be blocked while any SLO is close to exhausting its budget.
+   */
+  isReleaseGateOpen(): boolean {
+    const rates = this.getAllBurnRates();
+    if (rates.length === 0) {
+      return true; // no SLOs registered — gate is open by default
+    }
+    return rates.every((r) => r.consumedBudgetPercent < 90);
+  }
+
+  /**
+   * Returns the current release-gate status together with a list of SLO
+   * names that are blocking the release (i.e. those whose consumed budget
+   * is >= 90 %).
+   */
+  getReleaseGateStatus(): { open: boolean; blockers: string[] } {
+    const rates = this.getAllBurnRates();
+    const blockers = rates
+      .filter((r) => r.consumedBudgetPercent >= 90)
+      .map(
+        (r) =>
+          `${r.sloName} (consumed ${r.consumedBudgetPercent.toFixed(1)}% of error budget)`,
+      );
+    return {
+      open: blockers.length === 0,
+      blockers,
+    };
+  }
 }
