@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: atlas
+          POSTGRES_PASSWORD: atlas
+          POSTGRES_DB: atlas_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Security audit
+        run: pnpm audit --audit-level=moderate
+
+      - name: Type check
+        run: pnpm type-check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test -- --coverage
+        env:
+          DATABASE_URL: postgresql://atlas:atlas@localhost:5432/atlas_test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+
+      - name: Accessibility tests
+        run: cd packages/web && pnpm vitest run --grep "accessibility"
+
+      - name: Coverage threshold enforcement
+        run: cd packages/api && npx jest --coverage --coverageReporters=json-summary && node -e "const c=require('./coverage/coverage-summary.json').total;const t={branches:70,functions:70,lines:80,statements:80};let f=false;for(const[k,v]of Object.entries(t)){if(c[k].pct<v){console.error(k+' coverage '+c[k].pct+'% < '+v+'%');f=true;}}if(f)process.exit(1);else console.log('Coverage thresholds met.');"

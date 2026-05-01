@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/benchmark-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("BENCHMARK_DATABASE_URL")
+}
+
+model TestEmail {
+  id                        String   @id @default(uuid()) @db.Uuid
+  subject                   String   @db.Text
+  body                      String   @db.Text
+  threadContext              String?  @map("thread_context") @db.Text
+  groundTruthLabel          String   @map("ground_truth_label") @db.VarChar(50)
+  groundTruthEntities       Json?    @map("ground_truth_entities") @db.JsonB
+  difficulty                String   @db.VarChar(20)
+  variationTags             String[] @map("variation_tags") @db.VarChar(50)
+  senderPersona             String?  @map("sender_persona") @db.VarChar(100)
+  geography                 String?  @db.VarChar(100)
+  tone                      String?  @db.VarChar(50)
+  completeness              String?  @db.VarChar(50)
+  expectedSentiment         String?  @map("expected_sentiment") @db.VarChar(50)
+  expectedUrgencySignal     String?  @map("expected_urgency_signal") @db.VarChar(50)
+  generationBatch           String   @map("generation_batch") @db.VarChar(100)
+  generationModel           String?  @map("generation_model") @db.VarChar(100)
+  generationPromptHash      String?  @map("generation_prompt_hash") @db.VarChar(64)
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt                 DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  benchmarkResults BenchmarkResult[]
+
+  @@map("test_emails")
+}
+
+model BenchmarkRun {
+  id               String   @id @default(uuid()) @db.Uuid
+  runName          String   @map("run_name") @db.VarChar(200)
+  llmMode          String   @map("llm_mode") @db.VarChar(20)
+  batchIdFilter    String?  @map("batch_id_filter") @db.VarChar(100)
+  emailCount       Int      @default(0) @map("email_count")
+
+  // Classification metrics
+  overallAccuracy  Float?   @map("overall_accuracy")
+  macroF1          Float?   @map("macro_f1")
+  weightedF1       Float?   @map("weighted_f1")
+  macroPrecision   Float?   @map("macro_precision")
+  macroRecall      Float?   @map("macro_recall")
+
+  // Confidence band distribution
+  greenCount       Int?     @map("green_count")
+  amberCount       Int?     @map("amber_count")
+  redCount         Int?     @map("red_count")
+  redManualCount   Int?     @map("red_manual_count")
+  greenAccuracy    Float?   @map("green_accuracy")
+  amberAccuracy    Float?   @map("amber_accuracy")
+  redAccuracy      Float?   @map("red_accuracy")
+
+  // NER metrics
+  nerPrecision     Float?   @map("ner_precision")
+  nerRecall        Float?   @map("ner_recall")
+  nerF1            Float?   @map("ner_f1")
+
+  // Full detail
+  confusionMatrix  Json?    @map("confusion_matrix") @db.JsonB
+  perClassMetrics  Json?    @map("per_class_metrics") @db.JsonB
+
+  // Latency
+  avgInferenceMs   Float?   @map("avg_inference_ms")
+  p95InferenceMs   Float?   @map("p95_inference_ms")
+  p99InferenceMs   Float?   @map("p99_inference_ms")
+
+  startedAt        DateTime @default(now()) @map("started_at") @db.Timestamptz()
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz()
+
+  results BenchmarkResult[]
+
+  @@map("benchmark_runs")
+}
+
+model BenchmarkResult {
+  id                     String   @id @default(uuid()) @db.Uuid
+  benchmarkRunId         String   @map("benchmark_run_id") @db.Uuid
+  testEmailId            String   @map("test_email_id") @db.Uuid
+
+  // Classification output
+  predictedLabel         String?  @map("predicted_label") @db.VarChar(50)
+  predictedConfidence    Float?   @map("predicted_confidence")
+  isCorrect              Boolean? @map("is_correct")
+  confidenceBand         String?  @map("confidence_band") @db.VarChar(20)
+
+  // NER output
+  extractedEntitiesJson  Json?    @map("extracted_entities_json") @db.JsonB
+  entityMatchResultsJson Json?    @map("entity_match_results_json") @db.JsonB
+
+  // Validation
+  validationOutcomesJson Json?    @map("validation_outcomes_json") @db.JsonB
+
+  // Secondary outputs
+  predictedSentiment     String?  @map("predicted_sentiment") @db.VarChar(50)
+  predictedUrgency       String?  @map("predicted_urgency") @db.VarChar(50)
+  sentimentCorrect       Boolean? @map("sentiment_correct")
+  urgencyCorrect         Boolean? @map("urgency_correct")
+
+  // Summary
+  summaryJson            Json?    @map("summary_json") @db.JsonB
+
+  // Pipeline metadata
+  llmMode                String?  @map("llm_mode") @db.VarChar(20)
+  inferenceMs            Float?   @map("inference_ms")
+
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  benchmarkRun BenchmarkRun @relation(fields: [benchmarkRunId], references: [id])
+  testEmail    TestEmail    @relation(fields: [testEmailId], references: [id])
+
+  @@map("benchmark_results")
+}

@@ -1,0 +1,802 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// USERS & ROLES (Section 3 / 4.15-4.16)
+// ============================================================
+
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  full_name       String    @db.VarChar(200)
+  email           String    @unique @db.VarChar(320)
+  password_hash   String?   @db.VarChar(256)
+  idp_subject     String?   @unique @db.VarChar(256)
+  phone           String?   @db.VarChar(20)
+  mfa_enabled     Boolean   @default(false)
+  is_active       Boolean   @default(true)
+  region          String?   @db.VarChar(50)
+  preferences_json Json?
+
+  // Audit columns
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_at DateTime @updatedAt @db.Timestamptz
+  updated_by String?  @db.Uuid
+  is_deleted Boolean  @default(false)
+  version    Int      @default(1)
+
+  // Relations
+  user_roles      UserRole[]
+  cases_assigned  Case[]           @relation("AssignedOfficer")
+  cases_created   Case[]           @relation("CaseCreatedBy")
+  activity_logs   CaseActivityLog[]
+  audit_logs      AuditLog[]
+  master_changes_made    MasterChangeLog[] @relation("MasterChangeMaker")
+  master_changes_approved MasterChangeLog[] @relation("MasterChangeChecker")
+  fpr_profile     FprMaster?
+
+  @@map("users")
+}
+
+model Role {
+  id               String   @id @default(uuid()) @db.Uuid
+  code             String   @unique @db.VarChar(50)
+  name             String   @db.VarChar(100)
+  permissions_json Json
+  is_active        Boolean  @default(true)
+
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  user_roles UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id      String @id @default(uuid()) @db.Uuid
+  user_id String @db.Uuid
+  role_id String @db.Uuid
+  region  String? @db.VarChar(50)
+
+  assigned_at DateTime @default(now()) @db.Timestamptz
+  assigned_by String?  @db.Uuid
+  is_active   Boolean  @default(true)
+
+  user User @relation(fields: [user_id], references: [id])
+  role Role @relation(fields: [role_id], references: [id])
+
+  @@unique([user_id, role_id])
+  @@map("user_roles")
+}
+
+// ============================================================
+// EMAIL INGEST (Section 4.1)
+// ============================================================
+
+model EmailIngest {
+  id              String   @id @default(uuid()) @db.Uuid
+  message_id      String   @unique @db.VarChar(998)
+  from_address    String   @db.VarChar(320)
+  to_addresses    String[] @db.VarChar(320)
+  cc_addresses    String[] @db.VarChar(320)
+  subject         String   @db.Text
+  body_text       String?  @db.Text
+  body_html       String?  @db.Text
+  received_at     DateTime @db.Timestamptz
+  ingest_status   String   @db.VarChar(30) // RECEIVED, DUPLICATE, AUTO_REPLY, QUARANTINED, PROCESSING, CLASSIFIED, FAILED
+  language_detected String? @db.VarChar(10)
+
+  // Security verdicts
+  spf_verdict     String?  @db.VarChar(20)
+  dkim_verdict    String?  @db.VarChar(20)
+  dmarc_verdict   String?  @db.VarChar(20)
+  phishing_score  Float?
+  spam_score      Float?
+  phishing_flagged Boolean @default(false)
+
+  // Thread
+  in_reply_to     String?  @db.VarChar(998)
+  references      String[] @db.VarChar(998)
+  thread_context  String?  @db.Text
+
+  // Storage
+  rfc822_s3_key   String?  @db.VarChar(512)
+  rfc822_checksum String?  @db.VarChar(128)
+  size_bytes      Int?
+
+  // Performance
+  ingest_latency_ms Int?
+
+  // Source
+  source_mailbox  String   @db.VarChar(100) // primary or secondary
+  provider        String   @db.VarChar(30)  // graph or gmail
+
+  // Quarantine & legal hold (FR-002.BR1)
+  legal_hold  Boolean  @default(false)
+  purged_at   DateTime? @db.Timestamptz
+
+  // Audit columns
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_at DateTime @updatedAt @db.Timestamptz
+  updated_by String?  @db.Uuid
+  is_deleted Boolean  @default(false)
+  version    Int      @default(1)
+
+  // Relations
+  case        Case?
+  attachments CaseAttachment[]
+
+  @@index([ingest_status])
+  @@index([from_address])
+  @@index([received_at])
+  @@map("email_ingests")
+}
+
+// ============================================================
+// CASE (Section 4.2)
+// ============================================================
+
+model Case {
+  id              String   @id @default(uuid()) @db.Uuid
+  case_number     String   @unique @db.VarChar(20) // ATL-YYYY-NNNNNN
+  email_ingest_id String?  @unique @db.Uuid
+
+  // Classification
+  case_type       String   @db.VarChar(50)
+  priority        String   @default("NORMAL") @db.VarChar(20) // LOW, NORMAL, HIGH, CRITICAL
+  status          String   @default("NEW") @db.VarChar(30) // see CaseStatus enum
+  confidence_band String?  @db.VarChar(20) // GREEN, AMBER, RED, RED_MANUAL
+  requires_human_review Boolean @default(false)
+
+  // Customer / Loan
+  loan_account_no   String? @db.VarChar(50)
+  customer_name     String? @db.VarChar(200)
+  property_address  String? @db.Text
+  property_pin      String? @db.VarChar(10)
+  property_city     String? @db.VarChar(100)
+  property_geo      String? @db.VarChar(50) // lat,long
+  monetary_amount   Decimal? @db.Decimal(18,2)
+  due_date          DateTime? @db.Date
+  reference_number  String? @db.VarChar(100)
+  contact_phone     String? @db.VarChar(20)
+
+  // Routing
+  assigned_fpr_id   String? @db.Uuid
+  assigned_vendor_id String? @db.Uuid
+  assigned_officer_id String? @db.Uuid
+  routing_rationale String? @db.Text
+
+  // SLA
+  tat_target_at         DateTime? @db.Timestamptz
+  tat_paused_total_seconds Int     @default(0)
+  tat_paused_at         DateTime? @db.Timestamptz
+  sla_breach_at         DateTime? @db.Timestamptz
+  escalation_level      Int       @default(0)
+
+  // Resolution
+  resolution_code   String? @db.VarChar(50)
+  resolution_summary String? @db.Text
+  resolved_at       DateTime? @db.Timestamptz
+  closed_at         DateTime? @db.Timestamptz
+
+  // AI
+  ai_summary        String? @db.Text
+  sentiment         String? @db.VarChar(20)
+  urgency_signal    String? @db.VarChar(50)
+
+  // Collateral Intelligence (Phase 2)
+  collateral_risk_score          Float?
+  disbursal_blocker_category     String? @db.VarChar(100)
+  document_completeness_percent  Float?
+  vendor_quality_score           Float?
+  valuation_variance_flag        Boolean?
+
+  // Thread
+  thread_id         String? @db.Uuid
+
+  // Audit columns
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_at DateTime @updatedAt @db.Timestamptz
+  updated_by String?  @db.Uuid
+  is_deleted Boolean  @default(false)
+  version    Int      @default(1)
+
+  // Relations
+  email_ingest      EmailIngest?       @relation(fields: [email_ingest_id], references: [id])
+  assigned_fpr      FprMaster?         @relation(fields: [assigned_fpr_id], references: [id])
+  assigned_vendor   VendorMaster?      @relation(fields: [assigned_vendor_id], references: [id])
+  assigned_officer  User?              @relation("AssignedOfficer", fields: [assigned_officer_id], references: [id])
+  created_by_user   User?              @relation("CaseCreatedBy", fields: [created_by], references: [id])
+  attachments       CaseAttachment[]
+  activity_logs     CaseActivityLog[]
+  ai_results        AiClassificationResult[]
+  suggested_replies SuggestedReplyDraft[]
+  linked_cases_from CaseLink[]         @relation("CaseLinkFrom")
+  linked_cases_to   CaseLink[]         @relation("CaseLinkTo")
+
+  @@index([status])
+  @@index([case_type])
+  @@index([priority])
+  @@index([assigned_officer_id])
+  @@index([assigned_fpr_id])
+  @@index([tat_target_at])
+  @@index([created_at])
+  @@map("cases")
+}
+
+model CaseLink {
+  id           String @id @default(uuid()) @db.Uuid
+  case_from_id String @db.Uuid
+  case_to_id   String @db.Uuid
+  link_type    String @db.VarChar(30) // RELATED, DUPLICATE, FOLLOW_UP
+
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.Uuid
+
+  case_from Case @relation("CaseLinkFrom", fields: [case_from_id], references: [id])
+  case_to   Case @relation("CaseLinkTo", fields: [case_to_id], references: [id])
+
+  @@unique([case_from_id, case_to_id])
+  @@map("case_links")
+}
+
+// ============================================================
+// CASE ATTACHMENT (Section 4.3)
+// ============================================================
+
+model CaseAttachment {
+  id               String  @id @default(uuid()) @db.Uuid
+  case_id          String? @db.Uuid
+  email_ingest_id  String? @db.Uuid
+  filename         String  @db.VarChar(255)
+  mime_type        String  @db.VarChar(100)
+  size_bytes       Int
+  s3_key           String  @db.VarChar(512)
+  checksum_sha256  String  @db.VarChar(64)
+
+  // Classification
+  document_type    String? @db.VarChar(50) // VALUATION_REPORT, LEGAL_OPINION, etc.
+  doc_type_confidence Float?
+
+  // OCR
+  ocr_text         String? @db.Text
+  ocr_confidence   Float?
+  extracted_fields_json Json?
+
+  // Scanning
+  av_scan_status   String  @default("PENDING") @db.VarChar(20) // PENDING, CLEAN, INFECTED, ERROR
+  av_scan_verdict  String? @db.VarChar(200)
+  av_scanned_at    DateTime? @db.Timestamptz
+
+  // DMS
+  dms_external_id  String? @db.VarChar(256)
+
+  // Audit columns
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_at DateTime @updatedAt @db.Timestamptz
+  is_deleted Boolean  @default(false)
+  version    Int      @default(1)
+
+  case         Case?        @relation(fields: [case_id], references: [id])
+  email_ingest EmailIngest? @relation(fields: [email_ingest_id], references: [id])
+
+  @@index([case_id])
+  @@index([document_type])
+  @@map("case_attachments")
+}
+
+// ============================================================
+// CASE ACTIVITY LOG (Section 4.4)
+// ============================================================
+
+model CaseActivityLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  case_id      String   @db.Uuid
+  action_code  String   @db.VarChar(50) // STATE_CHANGE, OUTBOUND_SENT, NOTE_ADDED, REASSIGNED, etc.
+  actor_id     String?  @db.Uuid
+  actor_type   String   @default("USER") @db.VarChar(20) // USER, SYSTEM, AI
+  payload_json Json?
+  note         String?  @db.Text
+
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  case  Case  @relation(fields: [case_id], references: [id])
+  actor User? @relation(fields: [actor_id], references: [id])
+
+  @@index([case_id, created_at])
+  @@map("case_activity_logs")
+}
+
+// ============================================================
+// MASTERS (Sections 4.5–4.12)
+// ============================================================
+
+model PropertyLocationMaster {
+  id            String  @id @default(uuid()) @db.Uuid
+  state         String  @db.VarChar(100)
+  city          String  @db.VarChar(100)
+  zone          String? @db.VarChar(50)
+  circle        String? @db.VarChar(50)
+  pin_from      String  @db.VarChar(10)
+  pin_to        String  @db.VarChar(10)
+  default_fpr_id String? @db.Uuid
+  region        String? @db.VarChar(50)
+
+  // Format normalisation (Section 4.0)
+  canonical_form String? @db.VarChar(200)
+  source_forms   String[] @db.VarChar(200)
+
+  // Effective dating
+  effective_from DateTime @default(now()) @db.Timestamptz
+  effective_to   DateTime? @db.Timestamptz
+  is_active      Boolean  @default(true)
+
+  // Audit columns
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_at DateTime @updatedAt @db.Timestamptz
+  updated_by String?  @db.Uuid
+  is_deleted Boolean  @default(false)
+  version    Int      @default(1)
+
+  default_fpr FprMaster? @relation(fields: [default_fpr_id], references: [id])
+
+  @@index([pin_from, pin_to])
+  @@index([city])
+  @@index([canonical_form])
+  @@map("property_location_masters")
+}
+
+model CaseTypeMaster {
+  id               String  @id @default(uuid()) @db.Uuid
+  code             String  @unique @db.VarChar(50)
+  display_name     String  @db.VarChar(200)
+  description      String? @db.Text
+  default_priority String  @default("NORMAL") @db.VarChar(20)
+  default_owner_role String @db.VarChar(50)
+  required_skills  String[] @db.VarChar(50)
+  confidence_threshold Float @default(0.75)
+
+  // Format normalisation
+  canonical_form String? @db.VarChar(200)
+  source_forms   String[] @db.VarChar(200)
+
+  // Effective dating
+  effective_from DateTime @default(now()) @db.Timestamptz
+  effective_to   DateTime? @db.Timestamptz
+  is_active      Boolean  @default(true)
+
+  // Audit columns
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_at DateTime @updatedAt @db.Timestamptz
+  updated_by String?  @db.Uuid
+  is_deleted Boolean  @default(false)
+  version    Int      @default(1)
+
+  @@index([canonical_form])
+  @@map("case_type_masters")
+}
+
+model FprMaster {
+  id              String  @id @default(uuid()) @db.Uuid
+  user_id         String  @unique @db.Uuid
+  employee_code   String  @unique @db.VarChar(50)
+  full_name       String  @db.VarChar(200)
+  region_ids      String[] @db.VarChar(50)
+  skills          String[] @db.VarChar(50)
+  capacity_per_day Int    @default(10)
+  is_ooo          Boolean @default(false)
+  ooo_delegate_id String? @db.Uuid
+  supervisor_id   String? @db.Uuid
+
+  // Format normalisation
+  canonical_form String? @db.VarChar(200)
+  source_forms   String[] @db.VarChar(200)
+
+  // Effective dating
+  effective_from DateTime @default(now()) @db.Timestamptz
+  effective_to   DateTime? @db.Timestamptz
+  is_active      Boolean  @default(true)
+
+  // Audit columns
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_at DateTime @updatedAt @db.Timestamptz
+  updated_by String?  @db.Uuid
+  is_deleted Boolean  @default(false)
+  version    Int      @default(1)
+
+  user              User                     @relation(fields: [user_id], references: [id])
+  cases             Case[]
+  location_defaults PropertyLocationMaster[]
+
+  @@index([employee_code])
+  @@index([canonical_form])
+  @@map("fpr_masters")
+}
+
+model VendorMaster {
+  id                  String  @id @default(uuid()) @db.Uuid
+  vendor_code         String  @unique @db.VarChar(50)
+  vendor_name         String  @db.VarChar(200)
+  vendor_category     String  @db.VarChar(50) // VALUER, ADVOCATE, SURVEYOR, etc.
+  contact_email       String? @db.VarChar(320)
+  contact_phone       String? @db.VarChar(20)
+  service_geographies String[] @db.VarChar(100)
+  service_case_types  String[] @db.VarChar(50)
+  contracted_tat_hours Int?
+  scorecard_quality   Float?  @default(0)
+  on_time_response_rate Float? @default(0)
+
+  // Format normalisation
+  canonical_form String? @db.VarChar(200)
+  source_forms   String[] @db.VarChar(200)
+
+  // Effective dating
+  effective_from DateTime @default(now()) @db.Timestamptz
+  effective_to   DateTime? @db.Timestamptz
+  is_active      Boolean  @default(true)
+
+  // Audit columns
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_at DateTime @updatedAt @db.Timestamptz
+  updated_by String?  @db.Uuid
+  is_deleted Boolean  @default(false)
+  version    Int      @default(1)
+
+  cases Case[]
+
+  @@index([vendor_code])
+  @@index([canonical_form])
+  @@map("vendor_masters")
+}
+
+model TatMaster {
+  id                   String @id @default(uuid()) @db.Uuid
+  case_type            String @db.VarChar(50)
+  priority             String @db.VarChar(20)
+  stage                String @db.VarChar(50) // CLASSIFICATION, ROUTING, VENDOR_RESPONSE, FPR_RESPONSE, RESOLUTION
+  target_hours_business Int
+  warn_at_percent      Int    @default(80)
+
+  // Effective dating
+  effective_from DateTime @default(now()) @db.Timestamptz
+  effective_to   DateTime? @db.Timestamptz
+  is_active      Boolean  @default(true)
+
+  // Audit columns
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_at DateTime @updatedAt @db.Timestamptz
+  updated_by String?  @db.Uuid
+  is_deleted Boolean  @default(false)
+  version    Int      @default(1)
+
+  @@unique([case_type, priority, stage])
+  @@map("tat_masters")
+}
+
+model EscalationHierarchyMaster {
+  id                    String  @id @default(uuid()) @db.Uuid
+  scope                 String  @db.VarChar(100) // e.g., CASE_TYPE/VALUATION
+  level                 Int
+  delay_after_breach_hrs Int    @default(0)
+  recipient_role        String  @db.VarChar(50)
+  recipient_user_id     String? @db.Uuid
+  channels              String[] @db.VarChar(20)
+  repeat_every_hrs      Int?
+  stop_on_action        Boolean @default(true)
+
+  // Effective dating
+  effective_from DateTime @default(now()) @db.Timestamptz
+  effective_to   DateTime? @db.Timestamptz
+  is_active      Boolean  @default(true)
+
+  // Audit columns
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_at DateTime @updatedAt @db.Timestamptz
+  updated_by String?  @db.Uuid
+  is_deleted Boolean  @default(false)
+  version    Int      @default(1)
+
+  @@unique([scope, level])
+  @@map("escalation_hierarchy_masters")
+}
+
+model HolidayCalendarMaster {
+  id       String   @id @default(uuid()) @db.Uuid
+  region   String   @db.VarChar(50)
+  date     DateTime @db.Date
+  name     String   @db.VarChar(200)
+  type     String   @db.VarChar(30) // NATIONAL, STATE, OPTIONAL
+
+  is_active Boolean @default(true)
+
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_at DateTime @updatedAt @db.Timestamptz
+  is_deleted Boolean  @default(false)
+  version    Int      @default(1)
+
+  @@unique([region, date])
+  @@map("holiday_calendar_masters")
+}
+
+model BusinessHoursMaster {
+  id          String  @id @default(uuid()) @db.Uuid
+  region      String  @db.VarChar(50)
+  day_of_week String  @db.VarChar(3) // MON, TUE, WED, THU, FRI, SAT, SUN
+  open_time   String  @db.VarChar(5) // HH:MM
+  close_time  String  @db.VarChar(5) // HH:MM
+  is_working  Boolean @default(true)
+
+  is_active Boolean @default(true)
+
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_at DateTime @updatedAt @db.Timestamptz
+  is_deleted Boolean  @default(false)
+  version    Int      @default(1)
+
+  @@unique([region, day_of_week])
+  @@map("business_hours_masters")
+}
+
+// ============================================================
+// NOTIFICATION (Sections 4.13–4.14)
+// ============================================================
+
+model NotificationTemplate {
+  id           String  @id @default(uuid()) @db.Uuid
+  code         String  @unique @db.VarChar(50)
+  name         String  @db.VarChar(200)
+  channel      String  @db.VarChar(20) // EMAIL, SMS, WHATSAPP, TEAMS, IN_APP
+  subject      String? @db.VarChar(500)
+  body_template String @db.Text // Handlebars template
+  language     String  @default("en") @db.VarChar(5)
+  is_active    Boolean @default(true)
+
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.Uuid
+  updated_at DateTime @updatedAt @db.Timestamptz
+  is_deleted Boolean  @default(false)
+  version    Int      @default(1)
+
+  @@unique([code, channel, language])
+  @@map("notification_templates")
+}
+
+model NotificationLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  channel      String   @db.VarChar(20)
+  recipient    String   @db.VarChar(320)
+  template_code String? @db.VarChar(50)
+  subject      String?  @db.VarChar(500)
+  body_preview String?  @db.VarChar(500)
+  status       String   @db.VarChar(20) // QUEUED, SENT, DELIVERED, BOUNCED, FAILED
+  retry_count  Int      @default(0)
+  error_detail String?  @db.Text
+  external_id  String?  @db.VarChar(256)
+
+  case_id      String?  @db.Uuid
+  triggered_by String?  @db.VarChar(50) // ESCALATION, PENDENCY, ACK, etc.
+
+  created_at DateTime @default(now()) @db.Timestamptz
+  sent_at    DateTime? @db.Timestamptz
+  delivered_at DateTime? @db.Timestamptz
+
+  @@index([status])
+  @@index([case_id])
+  @@index([recipient])
+  @@map("notification_logs")
+}
+
+// ============================================================
+// AI CLASSIFICATION (Section 4.18)
+// ============================================================
+
+model AiClassificationResult {
+  id              String  @id @default(uuid()) @db.Uuid
+  case_id         String  @db.Uuid
+  model_name      String  @db.VarChar(100)
+  model_version   String  @db.VarChar(50)
+  llm_mode        String  @db.VarChar(10) // ON, DEGRADED, OFF
+
+  // Classification
+  top_label       String  @db.VarChar(50)
+  top_confidence  Float
+  alternatives_json Json  // [{label, confidence}]
+  rationale_text  String? @db.Text
+
+  // NER
+  extracted_entities_json Json? // {loan_account_no, customer_name, ...}
+
+  // Validation outcomes
+  validation_outcomes_json Json? // {field: PASS|FUZZY_MATCH|FAIL}
+
+  // Sentiment
+  sentiment       String? @db.VarChar(20)
+  urgency_signal  String? @db.VarChar(50)
+
+  // Performance
+  inference_ms    Int?
+  token_count     Int?
+
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  case Case @relation(fields: [case_id], references: [id])
+
+  @@index([case_id])
+  @@index([top_label])
+  @@map("ai_classification_results")
+}
+
+// ============================================================
+// SUGGESTED REPLY DRAFT (Section 4.19)
+// ============================================================
+
+model SuggestedReplyDraft {
+  id          String  @id @default(uuid()) @db.Uuid
+  case_id     String  @db.Uuid
+  recipient   String  @db.VarChar(320)
+  subject     String  @db.VarChar(500)
+  body        String  @db.Text
+  confidence  Float?
+  status      String  @default("PROPOSED") @db.VarChar(20) // PROPOSED, APPROVED, REJECTED, SENT
+  edited_body String? @db.Text
+  rejection_reason String? @db.Text
+
+  created_at DateTime @default(now()) @db.Timestamptz
+  approved_at DateTime? @db.Timestamptz
+  approved_by String?  @db.Uuid
+
+  case Case @relation(fields: [case_id], references: [id])
+
+  @@index([case_id])
+  @@map("suggested_reply_drafts")
+}
+
+// ============================================================
+// PENDENCY REPORT SCHEDULE (Section 4.20)
+// ============================================================
+
+model PendencyReportSchedule {
+  id              String  @id @default(uuid()) @db.Uuid
+  recipient_role  String  @db.VarChar(50)
+  recipient_id    String? @db.Uuid
+  cron_expression String  @db.VarChar(50)
+  timezone        String  @default("Asia/Kolkata") @db.VarChar(50)
+  channels        String[] @db.VarChar(20)
+  region          String?  @db.VarChar(50)
+  case_type       String?  @db.VarChar(50)
+  is_active       Boolean @default(true)
+  last_run_at     DateTime? @db.Timestamptz
+
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  @@map("pendency_report_schedules")
+}
+
+// ============================================================
+// AUDIT LOG (Section 4.21) — Immutable, WORM
+// ============================================================
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  event_code   String   @db.VarChar(50) // LOGIN_SUCCESS, PII_EXPORT, MASTER_APPROVED, MODEL_PROMOTED, etc.
+  actor_id     String?  @db.Uuid
+  actor_type   String   @default("USER") @db.VarChar(20) // USER, SYSTEM, SERVICE
+  resource_type String? @db.VarChar(50) // Case, Master, User, Model, etc.
+  resource_id  String?  @db.Uuid
+  action       String   @db.VarChar(50) // CREATE, UPDATE, DELETE, READ, APPROVE, etc.
+  payload_json Json?
+  ip_address   String?  @db.VarChar(45)
+  user_agent   String?  @db.VarChar(500)
+
+  // Hash chain for tamper-evidence
+  prev_hash    String?  @db.VarChar(64)
+  row_hash     String   @db.VarChar(64)
+
+  // Confidence context (for AI-related events)
+  ai_confidence Float?
+
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  actor User? @relation(fields: [actor_id], references: [id])
+
+  @@index([event_code])
+  @@index([actor_id])
+  @@index([resource_type, resource_id])
+  @@index([created_at])
+  @@map("audit_logs")
+}
+
+// ============================================================
+// CONSENT LEDGER (Section 4.22 — DPDP)
+// ============================================================
+
+model ConsentLedger {
+  id              String   @id @default(uuid()) @db.Uuid
+  data_subject_id String   @db.VarChar(200) // customer identifier
+  purpose_code    String   @db.VarChar(50) // COLLATERAL_VALUATION, COMMUNICATION, etc.
+  status          String   @db.VarChar(20) // GRANTED, REVOKED, EXPIRED
+  source          String   @db.VarChar(100) // IMPLIED_BY_LOAN_CONTRACT, EXPLICIT_CONSENT, etc.
+  granted_at      DateTime @db.Timestamptz
+  revoked_at      DateTime? @db.Timestamptz
+  expires_at      DateTime? @db.Timestamptz
+
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  @@index([data_subject_id])
+  @@index([purpose_code, status])
+  @@map("consent_ledger")
+}
+
+// ============================================================
+// MASTER CHANGE LOG (Section 4.17) — Maker-Checker
+// ============================================================
+
+model MasterChangeLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  master_table  String   @db.VarChar(50) // property_location_masters, case_type_masters, etc.
+  record_id     String?  @db.Uuid
+  action        String   @db.VarChar(20) // CREATE, UPDATE, DELETE
+  before_json   Json?
+  after_json    Json?
+  status        String   @default("PENDING") @db.VarChar(20) // PENDING, APPROVED, REJECTED
+  rejection_reason String? @db.Text
+
+  // Maker-Checker
+  maker_id      String   @db.Uuid
+  checker_id    String?  @db.Uuid
+  submitted_at  DateTime @default(now()) @db.Timestamptz
+  reviewed_at   DateTime? @db.Timestamptz
+
+  // Effective dating
+  effective_at  DateTime? @db.Timestamptz
+  is_batch      Boolean  @default(false)
+  batch_id      String?  @db.Uuid
+
+  maker   User  @relation("MasterChangeMaker", fields: [maker_id], references: [id])
+  checker User? @relation("MasterChangeChecker", fields: [checker_id], references: [id])
+
+  @@index([master_table, status])
+  @@index([maker_id])
+  @@index([status])
+  @@map("master_change_logs")
+}
+
+// ============================================================
+// DSR REQUEST (DPDP — Data Subject Requests)
+// ============================================================
+
+model DsrRequest {
+  id               String   @id @default(uuid()) @db.Uuid
+  data_subject_id  String   @db.VarChar(200)
+  requested_by     String   @db.VarChar(200)
+  type             String   @db.VarChar(20) // ACCESS, ERASURE, RECTIFICATION
+  status           String   @default("PENDING") @db.VarChar(20) // PENDING, IN_PROGRESS, COMPLETED, REJECTED
+  report_data      Json?
+  created_at       DateTime @default(now()) @db.Timestamptz
+  updated_at       DateTime @updatedAt @db.Timestamptz
+  completed_at     DateTime? @db.Timestamptz
+
+  @@index([data_subject_id])
+  @@index([status])
+  @@map("dsr_requests")
+}

@@ -1,0 +1,32 @@
+{
+  "labels": [
+    "VALUATION_REQUEST",
+    "LEGAL_OPINION",
+    "TITLE_SEARCH",
+    "INSURANCE_RENEWAL",
+    "RELEASE_OF_COLLATERAL",
+    "SITE_VISIT",
+    "DOCUMENT_COLLECTION",
+    "GENERAL_INQUIRY"
+  ],
+  "label2id": {
+    "VALUATION_REQUEST": 0,
+    "LEGAL_OPINION": 1,
+    "TITLE_SEARCH": 2,
+    "INSURANCE_RENEWAL": 3,
+    "RELEASE_OF_COLLATERAL": 4,
+    "SITE_VISIT": 5,
+    "DOCUMENT_COLLECTION": 6,
+    "GENERAL_INQUIRY": 7
+  },
+  "id2label": {
+    "0": "VALUATION_REQUEST",
+    "1": "LEGAL_OPINION",
+    "2": "TITLE_SEARCH",
+    "3": "INSURANCE_RENEWAL",
+    "4": "RELEASE_OF_COLLATERAL",
+    "5": "SITE_VISIT",
+    "6": "DOCUMENT_COLLECTION",
+    "7": "GENERAL_INQUIRY"
+  }
+}
