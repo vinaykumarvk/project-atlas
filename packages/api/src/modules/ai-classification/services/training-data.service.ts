@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../../common/prisma';
 
@@ -238,6 +239,34 @@ export class TrainingDataService {
     } catch (err) {
       this.logger.error(`Failed to check DB readiness: ${(err as Error).message}`);
       return this.getRetrainingStatus(effectiveThreshold);
+    }
+  }
+
+  /**
+   * FR-165: Trigger categorization refinement when correction count for a category
+   * exceeds the threshold. Queues the category for targeted retraining.
+   */
+  triggerCategorizationRefinement(categoryId: string, corrections: number): void {
+    this.logger.log(`Categorization refinement triggered: category=${categoryId} corrections=${corrections}`);
+    if (corrections >= 10) {
+      this.logger.log(`Category ${categoryId} queued for next retraining cycle`);
+      // Mark category for targeted retraining
+      (this as any).refinementQueue = (this as any).refinementQueue || [];
+      (this as any).refinementQueue.push({ categoryId, corrections, queuedAt: new Date().toISOString() });
+    }
+  }
+
+  /**
+   * FR-132.A3: Monthly retraining cron — runs at 02:00 on the 1st of every month.
+   */
+  @Cron('0 2 1 * *')
+  async handleMonthlyRetrainingCheck(): Promise<void> {
+    this.logger.log('Monthly retraining cron triggered');
+    if (this.shouldTriggerRetraining()) {
+      this.logger.log('Retraining threshold met — initiating retraining');
+      this.triggerRetraining();
+    } else {
+      this.logger.log('Retraining threshold not met — skipping');
     }
   }
 }

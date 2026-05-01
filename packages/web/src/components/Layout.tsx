@@ -25,7 +25,9 @@ const navItems = [
 ];
 
 export function Layout() {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    try { return localStorage.getItem('atlas_dark_mode') === 'true'; } catch { return false; }
+  });
 
   // Midday refresh opt-in (FR-071.A2) — stored in localStorage
   const [middayRefresh, setMiddayRefresh] = useState(() => {
@@ -35,6 +37,11 @@ export function Layout() {
   useEffect(() => {
     localStorage.setItem(MIDDAY_REFRESH_KEY, String(middayRefresh));
   }, [middayRefresh]);
+
+  // FR-057.A3: Persist dark mode preference to localStorage
+  useEffect(() => {
+    try { localStorage.setItem('atlas_dark_mode', String(darkMode)); } catch {}
+  }, [darkMode]);
 
   // Browser notifications hook (FR-057.A4)
   useNotifications();

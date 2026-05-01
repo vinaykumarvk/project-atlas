@@ -57,6 +57,7 @@ export class InternalNotesService {
   async getNotes(
     caseId: string,
     viewerRole: string,
+    options?: { excludePrivateNotes?: boolean },
   ): Promise<any[]> {
     const activities = await this.prisma.caseActivityLog.findMany({
       where: { case_id: caseId, action_code: 'NOTE' },
@@ -65,13 +66,23 @@ export class InternalNotesService {
 
     const privilegedRoles = ['COLLATERAL_OFFICER', 'COLLATERAL_LEAD', 'SYS_ADMIN', 'OFFICER', 'LEAD'];
 
-    return activities.filter((a: any) => {
+    let notes = activities.filter((a: any) => {
       const payload = a.payload_json as Record<string, unknown> | null;
       if (payload?.isPrivate === true && !privilegedRoles.includes(viewerRole)) {
         return false;
       }
       return true;
     });
+
+    // FR-054.A3: Filter out private notes for export scenarios
+    if (options?.excludePrivateNotes) {
+      notes = notes.filter((a: any) => {
+        const payload = a.payload_json as Record<string, unknown> | null;
+        return payload?.isPrivate !== true;
+      });
+    }
+
+    return notes;
   }
 
   parseMentions(content: string): string[] {

@@ -3,6 +3,8 @@ import { useMemo } from 'react';
 interface DraftDiffProps {
   original: string;
   edited: string;
+  editable?: boolean;
+  onEdit?: (newText: string) => void;
 }
 
 interface DiffSegment {
@@ -10,14 +12,24 @@ interface DiffSegment {
   text: string;
 }
 
-export function DraftDiff({ original, edited }: DraftDiffProps) {
+export function DraftDiff({ original, edited, editable, onEdit }: DraftDiffProps) {
   const segments = useMemo(() => computeWordDiff(original, edited), [original, edited]);
 
   return (
     <div data-testid="draft-diff" style={{ fontFamily: 'monospace', lineHeight: 1.6, padding: 12, backgroundColor: '#f9fafb', borderRadius: 8, border: '1px solid #e5e7eb' }}>
       {segments.map((seg, i) => {
         if (seg.type === 'added') {
-          return <span key={i} style={{ backgroundColor: '#bbf7d0', textDecoration: 'none', padding: '1px 2px' }}>{seg.text}</span>;
+          return (
+            <span
+              key={i}
+              contentEditable={editable}
+              suppressContentEditableWarning
+              onBlur={(e) => onEdit?.(e.currentTarget.textContent || '')}
+              style={{ backgroundColor: '#bbf7d0', textDecoration: 'none', padding: '1px 2px', cursor: editable ? 'text' : 'default' }}
+            >
+              {seg.text}
+            </span>
+          );
         }
         if (seg.type === 'removed') {
           return <span key={i} style={{ backgroundColor: '#fecaca', textDecoration: 'line-through', padding: '1px 2px' }}>{seg.text}</span>;

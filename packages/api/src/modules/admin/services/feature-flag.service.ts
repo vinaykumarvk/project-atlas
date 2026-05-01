@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'crypto';
 
 export interface FlagValue {
@@ -13,10 +13,44 @@ export interface FlagValue {
 
 @Injectable()
 export class FeatureFlagService {
+  private readonly logger = new Logger(FeatureFlagService.name);
   private flags = new Map<string, FlagValue>();
+  private pollInterval: ReturnType<typeof setInterval> | null = null;
+  private lastPollHash: string = '';
 
   constructor() {
     this.seedDefaults();
+  }
+
+  /**
+   * FR-151.A2: Start polling for configuration changes at a given interval.
+   */
+  startPolling(intervalMs: number = 30000): void {
+    if (this.pollInterval) return;
+    this.pollInterval = setInterval(() => this.pollForChanges(), intervalMs);
+    this.logger.log(`Config hot-reload polling started (interval=${intervalMs}ms)`);
+  }
+
+  /**
+   * FR-151.A2: Stop polling for configuration changes.
+   */
+  stopPolling(): void {
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
+      this.logger.log('Config hot-reload polling stopped');
+    }
+  }
+
+  /**
+   * FR-151.A2: Check for configuration changes by comparing serialized flag state.
+   */
+  private pollForChanges(): void {
+    const currentHash = JSON.stringify(Array.from(this.flags.entries()));
+    if (currentHash !== this.lastPollHash) {
+      this.logger.log('Feature flag configuration change detected');
+      this.lastPollHash = currentHash;
+    }
   }
 
   /**

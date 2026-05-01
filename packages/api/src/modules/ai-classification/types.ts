@@ -50,6 +50,15 @@ export interface ClassificationResult {
   llmEndpointRegion?: string;
   /** FR-010.A2: Multi-label classification results. */
   labels?: string[];
+  /** FR-131.A1: Feature attribution for explainability. */
+  feature_attribution?: FeatureAttribution[];
+}
+
+/** FR-131.A1: Feature attribution for explainability. */
+export interface FeatureAttribution {
+  feature: string;
+  weight: number;
+  direction: 'positive' | 'negative';
 }
 
 export interface ClassificationLabel {

@@ -432,6 +432,46 @@ th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f4f4f4}</
   }
 
   /**
+   * FR-156.A4: Get amendment workflow with structured steps for a vendor.
+   * Analyzes recommendation and returns actionable workflow steps.
+   */
+  async getAmendmentWorkflow(vendorId: string): Promise<{ recommended: boolean; reason: string; steps: Array<{ step: number; action: string; owner: string; deadline: string }> }> {
+    const recommendation = await this.getAmendmentRecommendation(vendorId);
+    if (!recommendation || recommendation.recommend !== 'AMENDMENT') {
+      return { recommended: false, reason: 'No amendment needed', steps: [] };
+    }
+    return {
+      recommended: true,
+      reason: recommendation.reason || 'Performance below threshold for 2+ consecutive quarters',
+      steps: [
+        { step: 1, action: 'Issue performance notice to vendor', owner: 'VENDOR_MANAGER', deadline: '7 days' },
+        { step: 2, action: 'Vendor submits improvement plan', owner: 'VENDOR', deadline: '14 days' },
+        { step: 3, action: 'Review and approve/reject amendment', owner: 'COMPLIANCE_OFFICER', deadline: '7 days' },
+        { step: 4, action: 'Execute SLA amendment if approved', owner: 'LEGAL', deadline: '14 days' },
+      ],
+    };
+  }
+
+  /**
+   * FR-163: Check vendor SLA breach and generate alert notification.
+   */
+  checkVendorSlaBreachAlert(vendorId: string, tatHours: number, slaLimitHours: number): { breached: boolean; notification?: any } {
+    if (tatHours > slaLimitHours) {
+      this.logger.warn(`Vendor SLA breach: vendor=${vendorId} TAT=${tatHours}h limit=${slaLimitHours}h`);
+      return {
+        breached: true,
+        notification: {
+          template: 'VENDOR_SLA_BREACH',
+          channel: 'EMAIL',
+          recipients: ['VENDOR_MANAGER', vendorId],
+          context: { vendorId, tatHours, slaLimitHours },
+        },
+      };
+    }
+    return { breached: false };
+  }
+
+  /**
    * List all active vendors with summary scorecard data.
    */
   async listVendorSummaries(location?: string): Promise<

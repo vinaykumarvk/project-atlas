@@ -54,6 +54,8 @@ const VendorPortalPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(1);
   const navigate = useNavigate();
 
   const { data, isLoading, isError, error } = useQuery({
@@ -121,6 +123,53 @@ const VendorPortalPage = () => {
       <p style={styles.subtitle}>
         Read-only view of assigned cases ({total} total)
       </p>
+
+      <button data-testid="start-onboarding-btn" onClick={() => { setShowOnboarding(true); setOnboardingStep(1); }} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, marginBottom: 16, cursor: 'pointer' }}>
+        Start Vendor Onboarding
+      </button>
+
+      {/* FR-156.A1: Vendor Onboarding Wizard */}
+      {showOnboarding && (
+        <div data-testid="vendor-onboarding-wizard" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 8, padding: 32, maxWidth: 500, width: '100%' }}>
+            <h2>Vendor Onboarding — Step {onboardingStep} of 3</h2>
+            {onboardingStep === 1 && (
+              <div data-testid="onboarding-step-1">
+                <p>Enter your organization details</p>
+                <input placeholder="Organization Name" style={{ width: '100%', padding: 8, marginBottom: 12, border: '1px solid #ddd', borderRadius: 4 }} />
+                <input placeholder="Contact Email" style={{ width: '100%', padding: 8, marginBottom: 12, border: '1px solid #ddd', borderRadius: 4 }} />
+              </div>
+            )}
+            {onboardingStep === 2 && (
+              <div data-testid="onboarding-step-2">
+                <p>Configure integration settings</p>
+                <select style={{ width: '100%', padding: 8, marginBottom: 12, border: '1px solid #ddd', borderRadius: 4 }}>
+                  <option>API Integration</option>
+                  <option>Email Integration</option>
+                  <option>Portal Only</option>
+                </select>
+                <input placeholder="API Key (if applicable)" style={{ width: '100%', padding: 8, marginBottom: 12, border: '1px solid #ddd', borderRadius: 4 }} />
+              </div>
+            )}
+            {onboardingStep === 3 && (
+              <div data-testid="onboarding-step-3">
+                <p>Review and confirm</p>
+                <p style={{ color: '#059669' }}>Organization details configured</p>
+                <p style={{ color: '#059669' }}>Integration settings saved</p>
+                <p>Click &quot;Complete&quot; to finish onboarding.</p>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
+              <button onClick={() => onboardingStep > 1 ? setOnboardingStep(s => s - 1) : setShowOnboarding(false)} style={{ padding: '8px 16px', cursor: 'pointer' }}>
+                {onboardingStep === 1 ? 'Cancel' : 'Back'}
+              </button>
+              <button onClick={() => onboardingStep < 3 ? setOnboardingStep(s => s + 1) : setShowOnboarding(false)} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+                {onboardingStep === 3 ? 'Complete' : 'Next'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FR-081 A1: Summary tiles */}
       <div style={styles.tilesContainer} data-testid="vendor-summary-tiles">

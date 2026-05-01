@@ -29,11 +29,12 @@ export const OUTAGE_TOLERANCE_MS = 15 * 60 * 1000;
 export class DualPollOrchestratorService {
   private readonly logger = new Logger(DualPollOrchestratorService.name);
 
-  /** Registered mail providers keyed by name. */
-  private readonly providers: Map<string, MailProvider> = new Map();
+  /** FR-155.A2: Registered mail providers keyed by name, with priority. */
+  private readonly providers: Map<string, { provider: MailProvider; priority: number }> = new Map();
 
-  /** Set of processed Message-IDs for deduplication. */
+  /** Set of processed Message-IDs for deduplication (bounded to prevent memory leaks). */
   private readonly processedIds = new Set<string>();
+  private static readonly MAX_PROCESSED_IDS = 50000;
 
   /** Collected emails from the last poll (for consumers). */
   private readonly collectedEmails: RawEmailData[] = [];
@@ -74,17 +75,19 @@ export class DualPollOrchestratorService {
    *
    * @param name - Unique name for this provider (e.g. 'graph', 'imap-primary')
    * @param provider - The mail provider instance
+   * @param priority - FR-155.A2: Priority for polling order (higher = polled first, default 0)
    */
-  registerProvider(name: string, provider: MailProvider): void {
+  registerProvider(name: string, provider: MailProvider, priority: number = 0): void {
     if (this.providers.has(name)) {
       this.logger.warn(`Provider ${name} is already registered, replacing`);
     }
-    this.providers.set(name, provider);
-    this.logger.log(`Registered mail provider: ${name}`);
+    this.providers.set(name, { provider, priority });
+    this.logger.log(`Registered mail provider: ${name} (priority=${priority})`);
   }
 
   /**
    * Poll all registered providers for new emails.
+   * FR-155.A2: Providers are polled in priority order (highest first).
    * Deduplicates messages by Message-ID across providers.
    *
    * @returns Array of poll results, one per provider
@@ -92,7 +95,11 @@ export class DualPollOrchestratorService {
   async pollAll(): Promise<PollResult[]> {
     const results: PollResult[] = [];
 
-    for (const [name, provider] of this.providers) {
+    // FR-155.A2: Sort providers by priority (highest first)
+    const sortedProviders = Array.from(this.providers.entries())
+      .sort(([, a], [, b]) => b.priority - a.priority);
+
+    for (const [name, { provider }] of sortedProviders) {
       this.logger.log(`Polling provider: ${name}`);
 
       try {
@@ -107,6 +114,11 @@ export class DualPollOrchestratorService {
               `Duplicate message skipped: ${email.messageId} from provider ${name}`,
             );
           } else {
+            // Evict oldest entries if at capacity to prevent unbounded memory growth
+            if (this.processedIds.size >= DualPollOrchestratorService.MAX_PROCESSED_IDS) {
+              const first = this.processedIds.values().next().value;
+              if (first) this.processedIds.delete(first);
+            }
             this.processedIds.add(email.messageId);
             this.collectedEmails.push(email);
             fetched++;

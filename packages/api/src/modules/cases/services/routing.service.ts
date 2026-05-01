@@ -431,6 +431,37 @@ export class RoutingService {
     return records;
   }
 
+  /**
+   * FR-160: Bulk reassign cases with workload balancing across target agents.
+   * Distributes cases round-robin to agents with lowest current workload.
+   */
+  bulkReassignWithBalancing(caseIds: string[], targetAgents: string[]): Array<{ caseId: string; assignedTo: string }> {
+    const workloads = new Map<string, number>(targetAgents.map(a => [a, 0]));
+    return caseIds.map(caseId => {
+      // Pick agent with lowest current workload
+      const sorted = [...workloads.entries()].sort((a, b) => a[1] - b[1]);
+      const assignedTo = sorted[0][0];
+      workloads.set(assignedTo, (workloads.get(assignedTo) || 0) + 1);
+      return { caseId, assignedTo };
+    });
+  }
+
+  /**
+   * FR-161: Check escalation threshold and auto-change priority.
+   * When escalation count crosses thresholds, automatically upgrades priority.
+   */
+  checkEscalationThreshold(caseId: string, currentPriority: string, escalationCount: number): string {
+    if (escalationCount >= 3 && currentPriority !== 'CRITICAL') {
+      this.logger.log(`Auto-escalating case=${caseId} to CRITICAL (escalations=${escalationCount})`);
+      return 'CRITICAL';
+    }
+    if (escalationCount >= 2 && currentPriority === 'LOW') {
+      this.logger.log(`Auto-escalating case=${caseId} to MEDIUM (escalations=${escalationCount})`);
+      return 'MEDIUM';
+    }
+    return currentPriority;
+  }
+
   // ---------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------

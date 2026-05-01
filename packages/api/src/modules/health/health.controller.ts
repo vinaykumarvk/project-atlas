@@ -1,7 +1,8 @@
-import { Controller, Get, Logger } from '@nestjs/common';
+import { Controller, Get, Logger, Optional, Inject, Header } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { EmailHealthService } from '../email-ingest/services/email-health.service';
 import { ProviderHealthService } from './provider-health.service';
+import { MetricsService } from './metrics.service';
 
 @ApiTags('Health')
 @Controller()
@@ -11,6 +12,7 @@ export class HealthController {
   constructor(
     private readonly emailHealthService: EmailHealthService,
     private readonly providerHealthService: ProviderHealthService,
+    @Optional() @Inject(MetricsService) private readonly metricsService?: MetricsService,
   ) {}
 
   @Get('health')
@@ -20,7 +22,9 @@ export class HealthController {
       status: 'ok',
       timestamp: new Date().toISOString(),
       service: 'atlas-api',
-      version: '0.1.0',
+      version: process.env.npm_package_version || '1.0.0',
+      uptime: process.uptime(),
+      memory: process.memoryUsage().heapUsed,
     };
   }
 
@@ -43,5 +47,19 @@ export class HealthController {
   async getDetailedHealth() {
     const health = await this.providerHealthService.getDetailedHealth();
     return { data: health };
+  }
+
+  /**
+   * FR-153.A2: Prometheus-compatible /metrics endpoint.
+   */
+  @Get('metrics')
+  @Header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
+  @ApiOperation({ summary: 'Prometheus metrics endpoint' })
+  @ApiResponse({ status: 200, description: 'Prometheus text format metrics' })
+  getMetrics(): string {
+    if (this.metricsService) {
+      return this.metricsService.getMetrics();
+    }
+    return '# No metrics available\n';
   }
 }

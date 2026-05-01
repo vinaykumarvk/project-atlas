@@ -455,6 +455,92 @@ describe('RoutingService Integration Tests (Phase 2)', () => {
   });
 
   // -----------------------------------------------------------------------
+  // Test 6: FR-031.A2 — OOO delegate workload-balanced tiebreaker
+  // -----------------------------------------------------------------------
+  describe('OOO delegate workload-balanced tiebreaker (FR-031.A2)', () => {
+    it('should select delegate with lowest workload when primary agent is OOO', () => {
+      routingService.setFprs([
+        buildFpr({
+          id: 'fpr-ooo-primary',
+          name: 'OOO Primary',
+          propertyZones: ['Mumbai'],
+          caseTypes: ['VALUATION_REQUEST'],
+          isOoo: true,
+          delegateId: 'delegate-a',
+        }),
+        buildFpr({
+          id: 'delegate-a',
+          name: 'Delegate A',
+          propertyZones: ['Mumbai'],
+          caseTypes: ['VALUATION_REQUEST'],
+          capacityPerDay: 10,
+          openCaseCount: 1,
+          isOoo: false,
+        }),
+        buildFpr({
+          id: 'delegate-b',
+          name: 'Delegate B',
+          propertyZones: ['Mumbai'],
+          caseTypes: ['VALUATION_REQUEST'],
+          capacityPerDay: 10,
+          openCaseCount: 5,
+          isOoo: false,
+        }),
+      ]);
+
+      // With OOO primary excluded, delegate-a has lowest workload (1 vs 5)
+      const result = routingService.route('VALUATION_REQUEST', 'Mumbai');
+      expect(result).not.toBeNull();
+      // delegate-a selected due to lowest workload among available agents
+      expect(result!.fprId).toBe('delegate-a');
+    });
+
+    it('should use workload tiebreaker when multiple OOO agents delegate to different agents', () => {
+      routingService.setFprs([
+        buildFpr({
+          id: 'fpr-ooo-1',
+          name: 'OOO Agent 1',
+          propertyZones: ['Mumbai'],
+          caseTypes: ['VALUATION_REQUEST'],
+          isOoo: true,
+          delegateId: 'delegate-x',
+        }),
+        buildFpr({
+          id: 'fpr-ooo-2',
+          name: 'OOO Agent 2',
+          propertyZones: ['Mumbai'],
+          caseTypes: ['VALUATION_REQUEST'],
+          isOoo: true,
+          delegateId: 'delegate-y',
+        }),
+        buildFpr({
+          id: 'delegate-x',
+          name: 'Delegate X',
+          propertyZones: ['Delhi'],
+          caseTypes: ['VALUATION_REQUEST'],
+          capacityPerDay: 10,
+          openCaseCount: 3,
+          isOoo: false,
+        }),
+        buildFpr({
+          id: 'delegate-y',
+          name: 'Delegate Y',
+          propertyZones: ['Delhi'],
+          caseTypes: ['VALUATION_REQUEST'],
+          capacityPerDay: 10,
+          openCaseCount: 3,
+          isOoo: false,
+        }),
+      ]);
+
+      const result = routingService.route('VALUATION_REQUEST', 'Mumbai');
+      expect(result).not.toBeNull();
+      // When workloads are equal, first registered delegate wins (sorted stable)
+      expect(['delegate-x', 'delegate-y']).toContain(result!.fprId);
+    });
+  });
+
+  // -----------------------------------------------------------------------
   // Legacy sync route method (backward compatibility)
   // -----------------------------------------------------------------------
   describe('Legacy synchronous route method', () => {

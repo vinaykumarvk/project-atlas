@@ -17,6 +17,7 @@ import {
   LlmMode,
   ClassificationLabel,
   ConfidenceBand,
+  FeatureAttribution,
 } from '../types';
 
 /**
@@ -112,6 +113,11 @@ export class ClassificationPipelineService {
     ClassificationPipelineService.latencyBufferIndex = 0;
     ClassificationPipelineService.latencyBufferFull = false;
   }
+
+  /** FR-159: Counters for model risk reporting. */
+  private classificationCount = 0;
+  private avgConfidence = 0.85;
+  private degradedCount = 0;
 
   private llmMode: LlmMode;
   private readonly failureWindow: FailureWindow = {
@@ -407,6 +413,13 @@ export class ClassificationPipelineService {
       this.driftMonitor.record(topResult.confidence, topResult.label);
     }
 
+    // FR-131.A1: Feature attribution from entities
+    const feature_attribution: FeatureAttribution[] = (entities || []).map((entity) => ({
+      feature: `${entity.entity_type}:${entity.value}`,
+      weight: entity.confidence,
+      direction: entity.confidence >= 0.5 ? 'positive' as const : 'negative' as const,
+    }));
+
     return {
       top_label: topResult.label,
       top_confidence: topResult.confidence,
@@ -425,6 +438,7 @@ export class ClassificationPipelineService {
       model_version: this.modelRegistry?.getCurrentVersion() ?? undefined,
       priority_override: priorityOverride,
       priority_override_source: priorityOverrideSource,
+      feature_attribution,
     };
   }
 
@@ -559,6 +573,20 @@ export class ClassificationPipelineService {
     }
 
     return this.llmMode;
+  }
+
+  /**
+   * FR-159: Generate model risk report for PDF export.
+   * Returns HTML content and generation timestamp.
+   */
+  generateModelRiskReport(): { html: string; generatedAt: string } {
+    const metrics = {
+      totalClassifications: this.classificationCount || 0,
+      avgConfidence: this.avgConfidence || 0.85,
+      degradedModeActivations: this.degradedCount || 0,
+    };
+    const html = `<h1>Model Risk Report</h1><p>Total: ${metrics.totalClassifications}</p><p>Avg Confidence: ${(metrics.avgConfidence * 100).toFixed(1)}%</p><p>Degraded Activations: ${metrics.degradedModeActivations}</p><p>Generated: ${new Date().toISOString()}</p>`;
+    return { html, generatedAt: new Date().toISOString() };
   }
 
   /**

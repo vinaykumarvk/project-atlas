@@ -284,4 +284,34 @@ export class CustomReportService {
   listScheduledReports(): ScheduledReport[] {
     return Array.from(this.scheduledReports.values());
   }
+
+  /**
+   * FR-113.A2: Export a saved report as PDF (returns HTML for PDF rendering).
+   */
+  async exportAsPdf(reportId: string): Promise<{ html: string; filename: string }> {
+    const report = this.savedReports.get(reportId);
+    if (!report) throw new Error(`Report not found: ${reportId}`);
+    const result = await this.executeReport(report.schema);
+    const html = `<!DOCTYPE html><html><head><title>${report.name}</title><style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f4f4f4}</style></head><body><h1>${report.name}</h1><table><thead><tr>${Object.keys(result.rows[0] || {}).map(k => `<th>${k}</th>`).join('')}</tr></thead><tbody>${result.rows.map(r => `<tr>${Object.values(r).map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><p>Generated: ${new Date().toISOString()}</p></body></html>`;
+    return { html, filename: `${report.name.replace(/\s+/g, '_')}_${Date.now()}.pdf` };
+  }
+
+  /**
+   * FR-113.A2: Export a saved report as CSV.
+   */
+  exportAsCsv(reportId: string): { csv: string; filename: string } {
+    const report = this.savedReports.get(reportId);
+    if (!report) throw new Error(`Report not found: ${reportId}`);
+    const result = this.executeReport(report.schema);
+    if (!result || !(result as any).rows || (result as any).rows.length === 0) {
+      return { csv: '', filename: `${report.name.replace(/\s+/g, '_')}.csv` };
+    }
+    const rows = (result as any).rows;
+    const headers = Object.keys(rows[0]);
+    const csvLines = [headers.join(',')];
+    for (const row of rows) {
+      csvLines.push(headers.map(h => `"${String((row as any)[h] ?? '').replace(/"/g, '""')}"`).join(','));
+    }
+    return { csv: csvLines.join('\n'), filename: `${report.name.replace(/\s+/g, '_')}.csv` };
+  }
 }

@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { NotificationDispatchService } from '../../notifications/services/notification-dispatch.service';
 import { NotificationChannel } from '../../notifications/types';
 
@@ -259,6 +260,20 @@ export class BiasCheckService {
       dimensions: report.dimensions,
       triggeredAt,
     };
+  }
+
+  /**
+   * FR-134.A1: Weekly bias check cron — runs once per week.
+   */
+  @Cron(CronExpression.EVERY_WEEK)
+  async handleWeeklyBiasCheck(): Promise<void> {
+    this.logger.log('Weekly bias check cron triggered');
+    const report = this.generateReport(['region', 'language', 'case_type']);
+    if (!report.fairnessPass) {
+      this.logger.warn(`Bias check FAILED — max disparity: ${report.maxDisparityPercent}`);
+    } else {
+      this.logger.log('Bias check passed');
+    }
   }
 
   /**

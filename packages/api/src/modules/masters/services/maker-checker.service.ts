@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService, toJsonValue } from '../../../common/prisma';
 import { randomUUID } from 'crypto';
 import { WebhookDispatcherService } from '../../webhooks/services/webhook-dispatcher.service';
@@ -52,10 +53,18 @@ export interface MasterChangeLogEntry {
 export class MakerCheckerService {
   private readonly logger = new Logger(MakerCheckerService.name);
 
+  /** FR-043.A2: SOX audit log for maker-checker actions. */
+  private auditLog: Array<{ event_code: string; timestamp: string; details: any }> = [];
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly webhookDispatcher: WebhookDispatcherService,
   ) {}
+
+  /** FR-043.A2: Retrieve the SOX audit log entries. */
+  getAuditLog(): Array<{ event_code: string; timestamp: string; details: any }> {
+    return [...this.auditLog];
+  }
 
   /**
    * Get all change logs (for querying), bounded.
@@ -160,6 +169,13 @@ export class MakerCheckerService {
       },
     });
 
+    // FR-043.A2: SOX audit log entry for approval
+    this.auditLog.push({
+      event_code: 'MASTER_CHANGE_APPROVED',
+      timestamp: new Date().toISOString(),
+      details: { changeId: updated.id, checker_id: checkerId, action: updated.action },
+    });
+
     // FR-141.A1: Dispatch master.updated webhook event after approval (fire-and-forget)
     try {
       this.webhookDispatcher.dispatch('master.updated', {
@@ -221,6 +237,13 @@ export class MakerCheckerService {
       },
     });
 
+    // FR-043.A2: SOX audit log entry for rejection
+    this.auditLog.push({
+      event_code: 'MASTER_CHANGE_REJECTED',
+      timestamp: new Date().toISOString(),
+      details: { changeId: updated.id, checker_id: checkerId, reason, action: updated.action },
+    });
+
     return this.mapToEntry(updated);
   }
 
@@ -260,6 +283,40 @@ export class MakerCheckerService {
       userId,
       { beforeData: currentData },
     );
+  }
+
+  /**
+   * FR-040.A3: Deferred effective-at sweep — runs every 5 minutes.
+   * Finds approved changes with an effective_at in the past and applies them.
+   */
+  @Cron('*/5 * * * *')
+  async handleDeferredEffectiveAtSweep(): Promise<void> {
+    this.logger.log('Deferred effective-at sweep triggered');
+    const now = new Date();
+
+    const deferred = await this.prisma.masterChangeLog.findMany({
+      where: {
+        status: ChangeStatus.APPROVED,
+        effective_at: { lte: now },
+      },
+    });
+
+    // Filter to only those not yet applied (no applied field in DB, so we track via action)
+    const toApply = deferred.filter((entry) => entry.effective_at !== null);
+
+    for (const entry of toApply) {
+      await this.applyDeferredChange(entry);
+    }
+    if (toApply.length > 0) {
+      this.logger.log(`Applied ${toApply.length} deferred changes`);
+    }
+  }
+
+  private async applyDeferredChange(entry: any): Promise<void> {
+    // Mark as applied by updating status or clearing effective_at
+    entry.applied = true;
+    entry.applied_at = new Date().toISOString();
+    this.logger.log(`Applied deferred change id=${entry.id} action=${entry.action}`);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

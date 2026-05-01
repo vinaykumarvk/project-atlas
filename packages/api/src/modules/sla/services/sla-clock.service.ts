@@ -340,8 +340,10 @@ export class SlaClockService {
       holidays,
     );
 
-    // Subtract paused hours from elapsed time
-    const elapsedBusinessHours = Math.max(0, elapsedRaw - pausedHours);
+    // FR-055.A2: Subtract paused hours from elapsed time for correct breach determination.
+    // The effectiveElapsed value excludes any time the clock was paused (e.g., AWAITING_VENDOR).
+    const effectiveElapsed = elapsedRaw - (pausedHours || 0);
+    const elapsedBusinessHours = Math.max(0, effectiveElapsed);
 
     // Remaining = total - elapsed
     const remainingBusinessHours = Math.max(0, totalHours - elapsedBusinessHours);

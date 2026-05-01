@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { AuditLogService } from '../../modules/audit/services/audit-log.service';
@@ -25,6 +26,8 @@ export class EncryptionService {
 
   private readonly logger = new Logger(EncryptionService.name);
   private encryptionKey: Buffer;
+  private lastRotatedAt: Date | null = null;
+  private auditEvents: Array<{ event_code: string; timestamp: string; details: any }> = [];
 
   constructor(
     private config: ConfigService,
@@ -179,5 +182,28 @@ export class EncryptionService {
     }
 
     return { previousKeyPrefix, newKeyPrefix };
+  }
+
+  /**
+   * FR-122.A3: Quarterly key rotation check — runs at 01:00 on the 1st of every 3rd month.
+   */
+  @Cron('0 1 1 */3 *')
+  async handleQuarterlyKeyRotationCheck(): Promise<void> {
+    this.logger.log('Quarterly key rotation check triggered');
+    const daysSinceRotation = this.getDaysSinceLastRotation();
+    if (daysSinceRotation >= 90) {
+      this.logger.warn(`Key rotation overdue — ${daysSinceRotation} days since last rotation`);
+      // Emit KEY_ROTATION_DUE audit event
+      this.auditEvents.push({
+        event_code: 'KEY_ROTATION_DUE',
+        timestamp: new Date().toISOString(),
+        details: { daysSinceRotation },
+      });
+    }
+  }
+
+  private getDaysSinceLastRotation(): number {
+    if (!this.lastRotatedAt) return 999;
+    return Math.floor((Date.now() - this.lastRotatedAt.getTime()) / (24 * 60 * 60 * 1000));
   }
 }

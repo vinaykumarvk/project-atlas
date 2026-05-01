@@ -7,6 +7,7 @@ import { AccountabilityBanner } from '../components/AccountabilityBanner';
 import { ConfidenceBadge, type ConfidenceBand } from '../components/ConfidenceBadge';
 import { SourceSpanHighlight } from '../components/SourceSpanHighlight';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
+import { DraftDiff } from '../components/DraftDiff';
 import { isDemoMode } from '../config/flags';
 import { parseMentions } from '../utils/parseMentions';
 import { useCase, useTransitionStatus, useAddNote, usePauseSla, useResumeSla, useUpdateCase, type CaseDetail as CaseDetailType } from '../hooks/useCases';
@@ -120,6 +121,8 @@ interface ActivityEvent {
   action: string;
   user: string;
   details: string;
+  previousBody?: string;
+  newBody?: string;
 }
 
 interface LinkedCase {
@@ -330,6 +333,19 @@ const CaseDetailPage = () => {
 
   // Attachment preview modal state (FR-051.A3)
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // FR-051.A3: Fetch signed URL before opening attachment preview
+  const handlePreviewAttachment = async (attachment: Attachment) => {
+    try {
+      const response = await fetch(`/api/cases/${caseId}/attachments/${attachment.id}/signed-url`);
+      const { url } = await response.json();
+      setPreviewUrl(url || attachment.downloadUrl || null);
+    } catch {
+      setPreviewUrl(attachment.downloadUrl || null);
+    }
+    setPreviewAttachment(attachment);
+  };
 
   // Keyboard shortcuts (FR-057.A1) — CaseDetail: n = add note, Esc = go back, ? = help
   const hotkeyMap = useMemo(
@@ -660,6 +676,27 @@ const CaseDetailPage = () => {
             )}
             <button style={styles.actionButton}>Assign Vendor</button>
             <button style={styles.actionButton}>Link Case</button>
+            {/* FR-051.A2: Complete action panel — Change Priority & Close Case */}
+            <button
+              data-testid="change-priority-btn"
+              onClick={() => setShowPriorityForm(true)}
+              style={{ ...styles.actionButton, backgroundColor: '#f59e0b', color: '#fff', border: 'none' }}
+            >
+              Change Priority
+            </button>
+            <button
+              data-testid="close-case-btn"
+              onClick={() => {
+                if (window.confirm('Are you sure you want to close this case?')) {
+                  if (caseId) {
+                    transitionStatus.mutate({ caseId, status: 'CLOSED' as CaseStatus, reason: 'Closed via action panel' });
+                  }
+                }
+              }}
+              style={{ ...styles.actionButton, backgroundColor: '#ef4444', color: '#fff', border: 'none' }}
+            >
+              Close Case
+            </button>
             {/* FR-054.A3: Compliance audit unlock — only COMPLIANCE_OFFICER/SYS_ADMIN can export directly */}
             {user?.roles?.some((r: string) => ['COMPLIANCE_OFFICER', 'SYS_ADMIN', 'DPO'].includes(r)) ? (
               <button
@@ -925,7 +962,7 @@ const CaseDetailPage = () => {
         {activeTab === 'overview' && <OverviewTab caseData={caseData} />}
         {activeTab === 'activity' && <ActivityTab />}
         {activeTab === 'linked' && <LinkedCasesTab />}
-        {activeTab === 'attachments' && <AttachmentsTab onPreview={setPreviewAttachment} />}
+        {activeTab === 'attachments' && <AttachmentsTab onPreview={handlePreviewAttachment} />}
         {activeTab === 'reply-drafts' && <ReplyDraftsTab caseId={caseId || '1'} />}
       </div>
 
@@ -963,14 +1000,14 @@ const CaseDetailPage = () => {
             <div style={styles.modalBody}>
               {previewAttachment.mimeType === 'application/pdf' ? (
                 <iframe
-                  src={previewAttachment.downloadUrl || '#'}
+                  src={previewUrl || previewAttachment.downloadUrl || '#'}
                   title={`Preview ${previewAttachment.name}`}
                   style={{ width: '100%', height: '500px', border: 'none' }}
                   data-testid="attachment-preview-pdf"
                 />
               ) : previewAttachment.mimeType.startsWith('image/') ? (
                 <img
-                  src={previewAttachment.downloadUrl || '#'}
+                  src={previewUrl || previewAttachment.downloadUrl || '#'}
                   alt={previewAttachment.name}
                   style={{ maxWidth: '100%', maxHeight: '500px', objectFit: 'contain' }}
                   data-testid="attachment-preview-image"
@@ -978,9 +1015,9 @@ const CaseDetailPage = () => {
               ) : (
                 <div data-testid="attachment-preview-download" style={{ textAlign: 'center', padding: '2rem' }}>
                   <p style={{ color: '#64748b', marginBottom: '1rem' }}>Preview not available for this file type.</p>
-                  {previewAttachment.downloadUrl && (
+                  {(previewUrl || previewAttachment.downloadUrl) && (
                     <a
-                      href={previewAttachment.downloadUrl}
+                      href={previewUrl || previewAttachment.downloadUrl}
                       download={previewAttachment.name}
                       style={{ color: 'var(--color-accent, #3b82f6)', fontWeight: 500 }}
                     >
@@ -1436,6 +1473,21 @@ function OverviewTab({ caseData }: { caseData: CaseData }) {
             <ConfidenceBadge band={caseData.classification.confidenceBand as ConfidenceBand} />
           </div>
         </div>
+        {/* FR-011.A4: Confidence conflict indicator when top-2 labels are within 10% */}
+        {(caseData.classification as any).confidenceScores && (() => {
+          const scores = Object.values((caseData.classification as any).confidenceScores).sort((a: any, b: any) => b - a);
+          if (scores.length >= 2 && (scores[0] as number) - (scores[1] as number) < 0.1) {
+            return (
+              <span data-testid="confidence-conflict-badge" style={{
+                background: '#fef3c7', color: '#92400e', padding: '2px 8px',
+                borderRadius: 4, fontSize: '0.75rem', fontWeight: 600, marginLeft: 8, display: 'inline-block', marginTop: '0.5rem'
+              }}>
+                ⚠ Classification Conflict
+              </span>
+            );
+          }
+          return null;
+        })()}
       </div>
 
       {/* Security Verdicts (FR-001.A4) */}
@@ -1680,6 +1732,10 @@ function ActivityTab() {
               <span style={styles.timelineTime}>{event.timestamp}</span>
             </div>
             <p style={styles.timelineDetails}>{event.details}</p>
+            {/* FR-004.A2: Show redline diff for Draft Edited events */}
+            {event.action === 'Draft Edited' && event.previousBody && event.newBody && (
+              <DraftDiff original={event.previousBody} edited={event.newBody} />
+            )}
             <span style={styles.timelineUser}>by {event.user}</span>
           </div>
         </div>

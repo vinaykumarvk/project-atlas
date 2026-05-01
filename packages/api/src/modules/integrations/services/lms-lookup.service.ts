@@ -101,17 +101,40 @@ export class MockLmsProvider implements LmsProvider {
 export class LmsLookupService {
   private readonly logger = new Logger(LmsLookupService.name);
 
+  /** FR-140.A3: In-memory cache for LMS lookups. */
+  private cache = new Map<string, { data: any; expiresAt: number }>();
+  private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
   constructor(
     @Inject('LmsProvider') private readonly provider: LmsProvider,
   ) {}
 
   /**
+   * FR-140.A3: Generic cache-or-fetch wrapper with TTL-based expiry.
+   */
+  private getOrFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+    const cached = this.cache.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      this.logger.log(`Cache hit for key=${key}`);
+      return Promise.resolve(cached.data as T);
+    }
+    return fetcher().then((data) => {
+      this.cache.set(key, { data, expiresAt: Date.now() + this.CACHE_TTL_MS });
+      return data;
+    });
+  }
+
+  /**
    * Look up an account in the LMS by account number.
+   * FR-140.A3: Uses in-memory cache with 5-minute TTL.
    */
   async lookupAccount(accountNo: string): Promise<LmsAccountResult | null> {
     this.logger.log(`Looking up LMS account: ${accountNo}`);
     try {
-      const result = await this.provider.lookupAccount(accountNo);
+      const result = await this.getOrFetch<LmsAccountResult | null>(
+        `account:${accountNo}`,
+        () => this.provider.lookupAccount(accountNo),
+      );
       if (result) {
         this.logger.log(
           `LMS account found: ${accountNo} (${result.customerName}, ${result.status})`,
@@ -126,6 +149,19 @@ export class LmsLookupService {
       );
       throw error;
     }
+  }
+
+  /**
+   * FR-140.A2: Customer profile enrichment — returns account details and case history.
+   */
+  async getCustomerProfile(accountNo: string): Promise<{ account: any; caseHistory: string[] } | null> {
+    this.logger.log(`Customer profile enrichment for account=${accountNo}`);
+    const account = await this.lookupAccount(accountNo);
+    if (!account) return null;
+    return {
+      account,
+      caseHistory: [], // Would be populated from case DB in production
+    };
   }
 
   /**

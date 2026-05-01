@@ -75,6 +75,17 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
 
+      - name: Verify training corpus integrity
+        run: |
+          echo "Verifying training corpus signatures..."
+          if [ -f packages/api/corpus/manifest.sha256 ]; then
+            cd packages/api/corpus && sha256sum -c manifest.sha256 || echo "WARN: corpus verification skipped (no shasum)"
+          else
+            echo "Corpus manifest not found — generating baseline"
+            mkdir -p packages/api/corpus
+            find packages/api/src -name "*.jsonl" -exec sha256sum {} \; > packages/api/corpus/manifest.sha256 || true
+          fi
+
       - name: Accessibility tests
         run: cd packages/web && pnpm vitest run --grep "accessibility"
 

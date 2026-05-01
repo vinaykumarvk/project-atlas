@@ -218,6 +218,40 @@ const CaseListPage = () => {
     }
   });
 
+  // FR-050.A3 + FR-162: Server-side saved views with localStorage fallback
+  const [serverViews, setServerViews] = useState<Array<{ id: string; name: string; filters: Record<string, string> }>>([]);
+  useEffect(() => {
+    fetch('/api/cases/saved-views')
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(views => setServerViews(views))
+      .catch(() => {
+        // Fallback to localStorage
+        try {
+          const local = localStorage.getItem(SAVED_VIEWS_KEY);
+          if (local) setServerViews(JSON.parse(local));
+        } catch {}
+      });
+  }, []);
+
+  // FR-057.A4: Browser notifications for CRITICAL cases
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const notifyCriticalCase = useCallback((caseItem: { id: string; subject?: string; type: string; priority: string }) => {
+    if ('Notification' in window && Notification.permission === 'granted' && caseItem.priority === 'CRITICAL') {
+      new Notification('Critical Case Alert', {
+        body: `Case ${caseItem.id}: ${caseItem.subject || caseItem.type}`,
+        icon: '/favicon.ico',
+      });
+    }
+  }, []);
+
   const handleSaveView = () => {
     const name = window.prompt('Enter a name for this view:');
     if (!name) return;
@@ -384,6 +418,13 @@ const CaseListPage = () => {
     : (liveData?.data ?? []);
   const totalCount = demo ? filteredCases.length : (liveData?.total ?? 0);
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  // FR-057.A4: Notify on newly loaded CRITICAL cases
+  useEffect(() => {
+    displayCases.forEach((c) => {
+      if (c.priority === 'P1') notifyCriticalCase(c);
+    });
+  }, [displayCases, notifyCriticalCase]);
 
   const handleRowClick = (caseId: string) => {
     navigate(`/cases/${caseId}`);
@@ -615,7 +656,7 @@ const CaseListPage = () => {
         <button onClick={handleSaveView} style={styles.viewButton} data-testid="save-view-btn">
           Save View
         </button>
-        {savedViews.length > 0 && (
+        {(savedViews.length > 0 || serverViews.length > 0) && (
           <select
             onChange={(e) => { if (e.target.value) handleLoadView(e.target.value); e.target.value = ''; }}
             style={styles.select}
@@ -625,6 +666,9 @@ const CaseListPage = () => {
             <option value="" disabled>Load View...</option>
             {savedViews.map((v) => (
               <option key={v.name} value={v.name}>{v.name}</option>
+            ))}
+            {serverViews.filter((sv: any) => !savedViews.some(lv => lv.name === sv.name)).map((sv: any) => (
+              <option key={sv.name || sv.id} value={sv.name}>{sv.name} (server)</option>
             ))}
           </select>
         )}

@@ -44,6 +44,7 @@ import { VendorResponseDto } from '../dto/vendor-response.dto';
 import { BulkActionDto, BulkAction } from '../dto/bulk-action.dto';
 import { NotificationDispatchService } from '../../notifications/services/notification-dispatch.service';
 import { NotificationChannel } from '../../notifications/types';
+import { SavedViewsService } from '../services/saved-views.service';
 
 /**
  * Interface representing the authenticated user on the request.
@@ -78,6 +79,7 @@ export class CasesController {
     private readonly prisma: PrismaService,
     @Optional() private readonly notificationDispatchService?: NotificationDispatchService,
     @Optional() private readonly fieldExtractorService?: FieldExtractorService,
+    @Optional() private readonly savedViewsService?: SavedViewsService,
   ) {}
 
   /**
@@ -230,6 +232,29 @@ export class CasesController {
         excludeNotes: shouldExcludeNotes,
       },
     };
+  }
+
+  /**
+   * FR-050.A3 + FR-162: Get saved views for the current user.
+   */
+  @Get('saved-views')
+  @ApiOperation({ summary: 'Get saved views for the current user' })
+  @ApiResponse({ status: 200, description: 'List of saved views' })
+  getSavedViews(@Req() req: AuthenticatedRequest) {
+    if (!this.savedViewsService) return [];
+    return this.savedViewsService.getViewsForUser(req.user?.sub || 'anonymous');
+  }
+
+  /**
+   * FR-050.A3 + FR-162: Create a new saved view.
+   */
+  @Post('saved-views')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a new saved view' })
+  @ApiResponse({ status: 201, description: 'Saved view created' })
+  createSavedView(@Req() req: AuthenticatedRequest, @Body() body: { name: string; filters: Record<string, any>; sort?: { field: string; direction: 'asc' | 'desc' } }) {
+    if (!this.savedViewsService) return null;
+    return this.savedViewsService.createView(req.user?.sub || 'anonymous', body.name, body.filters, body.sort);
   }
 
   /**
@@ -1012,4 +1037,5 @@ export class CasesController {
       message: 'Vendor response submitted successfully',
     };
   }
+
 }
