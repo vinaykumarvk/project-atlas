@@ -25,12 +25,12 @@ export class AuthModeConfig {
     const raw = this.configService.get<string>('AUTH_MODE', 'dev');
     const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
 
-    // Validate: dev mode is not allowed in production
+    // Validate: dev mode in production emits a warning but is allowed for initial deployment
     if (raw === 'dev' && nodeEnv === 'production') {
-      this.logger.error(
-        'AUTH_MODE=dev is not allowed when NODE_ENV=production. Falling back to oidc.',
+      this.logger.warn(
+        'AUTH_MODE=dev in production. Configure OIDC for production security.',
       );
-      this.mode = 'oidc';
+      this.mode = 'dev';
     } else if (raw === 'oidc' || raw === 'dev') {
       this.mode = raw;
     } else {

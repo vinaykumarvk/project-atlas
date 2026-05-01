@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { MakerCheckerService } from './services/maker-checker.service';
 import { EffectiveDatingService } from './services/effective-dating.service';
 import { BulkImportService } from './services/bulk-import.service';
@@ -17,6 +17,7 @@ import { MastersController } from './controllers/masters.controller';
  * - Generic REST API for all master tables
  * - Master change report generation (FR-114)
  */
+@Global()
 @Module({
   controllers: [MastersController],
   providers: [

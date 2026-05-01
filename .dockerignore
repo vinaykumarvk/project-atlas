@@ -1,0 +1,12 @@
+.git
+node_modules
+packages/api/node_modules
+packages/web/node_modules
+packages/shared/node_modules
+packages/benchmark
+packages/api/ml/model
+*.safetensors
+*.onnx.data
+*.docx
+doc/
+docs/

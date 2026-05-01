@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger, Optional } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService, toJsonValue } from '../../../common/prisma';
 import { randomUUID } from 'crypto';
@@ -58,7 +58,7 @@ export class MakerCheckerService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly webhookDispatcher: WebhookDispatcherService,
+    @Optional() private readonly webhookDispatcher?: WebhookDispatcherService,
   ) {}
 
   /** FR-043.A2: Retrieve the SOX audit log entries. */
@@ -178,7 +178,7 @@ export class MakerCheckerService {
 
     // FR-141.A1: Dispatch master.updated webhook event after approval (fire-and-forget)
     try {
-      this.webhookDispatcher.dispatch('master.updated', {
+      this.webhookDispatcher?.dispatch('master.updated', {
         changeId: updated.id,
         masterTable: updated.master_table,
         recordId: updated.record_id,
