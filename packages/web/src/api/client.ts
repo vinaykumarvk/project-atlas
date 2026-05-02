@@ -9,7 +9,7 @@
  */
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'http://localhost:3000/v1';
+  import.meta.env.VITE_API_URL || '/v1';
 
 const CSRF_COOKIE = 'atlas_csrf';
 const CSRF_HEADER = 'x-csrf-token';
@@ -54,7 +54,10 @@ function buildUrl(
   path: string,
   params?: Record<string, string | number | boolean | undefined>,
 ): string {
-  const url = new URL(`${API_BASE_URL}${path}`);
+  const base = API_BASE_URL.startsWith('http')
+    ? API_BASE_URL
+    : `${window.location.origin}${API_BASE_URL}`;
+  const url = new URL(`${base}${path}`);
   if (params) {
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined && value !== '') {

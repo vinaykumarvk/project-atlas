@@ -112,8 +112,9 @@ export class AuthService {
     password: string,
   ): Promise<DevUser | null> {
     // Dev mode only: check against seed users
-    if (this.configService.get('NODE_ENV') === 'production') {
-      throw new UnauthorizedException('Dev auth is disabled in production');
+    const authMode = this.configService.get('AUTH_MODE', 'dev');
+    if (authMode === 'oidc') {
+      throw new UnauthorizedException('Dev auth is disabled when AUTH_MODE=oidc');
     }
     const user = DEV_USERS.find(
       (u) => u.email === email && u.password === password,

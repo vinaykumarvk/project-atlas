@@ -1,0 +1,5 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-f', 'packages/web/Dockerfile', '-t', 'gcr.io/wealthmanagement-491511/project-atlas-web:latest', '.']
+images:
+  - 'gcr.io/wealthmanagement-491511/project-atlas-web:latest'

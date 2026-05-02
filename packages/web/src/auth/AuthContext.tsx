@@ -30,7 +30,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/v1';
 const STORAGE_KEY_USER = 'atlas_user';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
