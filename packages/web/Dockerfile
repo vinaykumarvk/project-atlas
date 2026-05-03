@@ -14,6 +14,8 @@ COPY packages/shared packages/shared
 COPY packages/web packages/web
 COPY tsconfig.base.json ./
 ENV VITE_API_URL=""
+ENV VITE_DEMO_MODE=true
+ENV VITE_SHOW_DEV_CREDENTIALS=true
 RUN cd packages/shared && npx tsc -p tsconfig.json 2>/dev/null || true
 RUN cd packages/web && npx vite build
 
