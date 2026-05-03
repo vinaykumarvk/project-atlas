@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { ShieldAlert } from 'lucide-react';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -26,9 +27,10 @@ export function AuthGuard({ children, requiredRoles }: AuthGuardProps) {
     );
     if (!hasRequiredRole) {
       return (
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <h2>Access Denied</h2>
-          <p>You do not have the required permissions to view this page.</p>
+        <div className="flex flex-col items-center justify-center p-16 text-center">
+          <ShieldAlert className="mb-4 h-12 w-12 text-destructive/50" />
+          <h2 className="mb-2 text-xl font-semibold">Access Denied</h2>
+          <p className="text-sm text-muted-foreground">You do not have the required permissions to view this page.</p>
         </div>
       );
     }

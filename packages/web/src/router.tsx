@@ -1,9 +1,20 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, type RouteObject } from 'react-router-dom';
+import { Navigate, Link, type RouteObject } from 'react-router-dom';
 import { AuthGuard } from './auth/AuthGuard';
 import { LoginPage } from './auth/LoginPage';
 import { Layout } from './components/Layout';
 import DashboardPage from './pages/Dashboard';
+import { Loader2, FileQuestion } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center p-24">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
 
 const CaseListPage = lazy(() => import('./pages/CaseList'));
 const CaseDetailPage = lazy(() => import('./pages/CaseDetail'));
@@ -53,15 +64,15 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'cases',
-        element: <Suspense fallback={<div>Loading...</div>}><CaseListPage /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><CaseListPage /></Suspense>,
       },
       {
         path: 'cases/:caseId',
-        element: <Suspense fallback={<div>Loading...</div>}><CaseDetailPage /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><CaseDetailPage /></Suspense>,
       },
       {
         path: 'triage',
-        element: <Suspense fallback={<div>Loading...</div>}><TriageQueuePage /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><TriageQueuePage /></Suspense>,
       },
       {
         path: 'queue',
@@ -73,19 +84,19 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'vendors',
-        element: <Suspense fallback={<div>Loading...</div>}><VendorScorecardPage /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><VendorScorecardPage /></Suspense>,
       },
       {
         path: 'disbursal-readiness',
-        element: <Suspense fallback={<div>Loading...</div>}><DisbursalReadinessPage /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><DisbursalReadinessPage /></Suspense>,
       },
       {
         path: 'collateral-risk',
-        element: <Suspense fallback={<div>Loading...</div>}><CollateralRiskPage /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><CollateralRiskPage /></Suspense>,
       },
       {
         path: 'masters',
-        element: <Suspense fallback={<div>Loading...</div>}><MasterManagement /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><MasterManagement /></Suspense>,
       },
       {
         path: 'reports',
@@ -93,50 +104,53 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'reports/custom',
-        element: <Suspense fallback={<div>Loading...</div>}><CustomReportBuilder /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><CustomReportBuilder /></Suspense>,
       },
       {
         path: 'admin',
-        element: <Suspense fallback={<div>Loading...</div>}><AdminConsole /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><AdminConsole /></Suspense>,
       },
       // ── Vendor Portal ──────────────────────────────────
       {
         path: 'vendor-portal',
-        element: <Suspense fallback={<div>Loading...</div>}><VendorPortalPage /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><VendorPortalPage /></Suspense>,
       },
       // ── Compliance routes ──────────────────────────────
       {
         path: 'compliance/audit',
-        element: <Suspense fallback={<div>Loading...</div>}><AuditSearch /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><AuditSearch /></Suspense>,
       },
       {
         path: 'compliance/dsr',
-        element: <Suspense fallback={<div>Loading...</div>}><DsrTracking /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><DsrTracking /></Suspense>,
       },
       {
         path: 'compliance/consent',
-        element: <Suspense fallback={<div>Loading...</div>}><ConsentLedger /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><ConsentLedger /></Suspense>,
       },
       {
         path: 'compliance/evidence',
-        element: <Suspense fallback={<div>Loading...</div>}><EvidencePack /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><EvidencePack /></Suspense>,
       },
       {
         path: 'compliance/regulatory-evidence',
-        element: <Suspense fallback={<div>Loading...</div>}><RegulatoryEvidence /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><RegulatoryEvidence /></Suspense>,
       },
       {
         path: 'compliance/dpo',
-        element: <Suspense fallback={<div>Loading...</div>}><DpoConsole /></Suspense>,
+        element: <Suspense fallback={<PageLoader />}><DpoConsole /></Suspense>,
       },
       {
         path: '*',
         element: (
-          <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <h2>404 — Page Not Found</h2>
-            <p>The page you are looking for does not exist.</p>
-            <a href="/dashboard">Return to Dashboard</a>
-          </div>
+          <Card className="mx-auto mt-24 max-w-md border-dashed">
+            <CardContent className="flex flex-col items-center py-16 text-center">
+              <FileQuestion className="mb-4 h-12 w-12 text-muted-foreground/50" />
+              <h2 className="mb-2 text-xl font-semibold">404 — Page Not Found</h2>
+              <p className="mb-6 text-sm text-muted-foreground">The page you are looking for does not exist.</p>
+              <Button asChild variant="outline"><Link to="/dashboard">Return to Dashboard</Link></Button>
+            </CardContent>
+          </Card>
         ),
       },
     ],

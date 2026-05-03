@@ -135,9 +135,9 @@ describe('CaseDetail three-pane flex layout (FR-051.A1)', () => {
     expect(centerPane).toHaveTextContent('Overview');
   });
 
-  it('three-pane layout uses flexbox', () => {
+  it('three-pane layout uses flexbox via Tailwind class', () => {
     renderCaseDetail();
     const layout = screen.getByTestId('three-pane-layout');
-    expect(layout.style.display).toBe('flex');
+    expect(layout.className).toContain('flex');
   });
 });

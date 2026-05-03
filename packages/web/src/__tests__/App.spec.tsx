@@ -90,21 +90,21 @@ describe('AuthGuard redirect', () => {
   it('redirects unauthenticated users to /login when visiting a protected route', () => {
     renderApp('/dashboard');
 
-    // The login page title should be visible
-    expect(screen.getByText('Project Atlas')).toBeInTheDocument();
-    expect(screen.getByText('Sign in to continue')).toBeInTheDocument();
+    // The login page title and sign-in card should be visible
+    expect(screen.getAllByText('Project Atlas').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Sign in')).toBeInTheDocument();
   });
 
   it('redirects unauthenticated users to /login when visiting /cases', () => {
     renderApp('/cases');
 
-    expect(screen.getByText('Project Atlas')).toBeInTheDocument();
+    expect(screen.getAllByText('Project Atlas').length).toBeGreaterThanOrEqual(1);
   });
 
   it('redirects unauthenticated users to /login when visiting the root path /', () => {
     renderApp('/');
 
-    expect(screen.getByText('Sign in to continue')).toBeInTheDocument();
+    expect(screen.getByText('Enter your credentials to access the platform')).toBeInTheDocument();
   });
 
   it('does NOT redirect authenticated users away from protected routes', () => {

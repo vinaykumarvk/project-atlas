@@ -7,6 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@atlas/shared': path.resolve(__dirname, '../shared/src'),
+      '@': path.resolve(__dirname, './src'),
     },
   },
   server: {

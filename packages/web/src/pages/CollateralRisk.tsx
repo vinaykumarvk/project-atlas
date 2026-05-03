@@ -1,8 +1,21 @@
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isDemoMode } from '../config/flags';
 import { useCollateralRisk } from '../hooks/useCollateralOps';
 import type { CollateralRiskSummary, RiskSummaryCase } from '../hooks/useCollateralOps';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ShieldAlert } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 // ---------------------------------------------------------------------------
 // Mock data for demo mode
@@ -33,11 +46,11 @@ const MOCK_DATA: CollateralRiskSummary = {
   ],
 };
 
-const RISK_TIER_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
-  LOW: { label: 'Low', color: '#16a34a', bgColor: '#dcfce7' },
-  MEDIUM: { label: 'Medium', color: '#ca8a04', bgColor: '#fef9c3' },
-  HIGH: { label: 'High', color: '#ea580c', bgColor: '#fed7aa' },
-  CRITICAL: { label: 'Critical', color: '#dc2626', bgColor: '#fecaca' },
+const RISK_TIER_CONFIG: Record<string, { label: string; color: string; bgColor: string; tw: string; twBg: string; twBorder: string }> = {
+  LOW: { label: 'Low', color: '#16a34a', bgColor: '#dcfce7', tw: 'text-green-600', twBg: 'bg-green-100', twBorder: 'border-green-600' },
+  MEDIUM: { label: 'Medium', color: '#ca8a04', bgColor: '#fef9c3', tw: 'text-yellow-600', twBg: 'bg-yellow-100', twBorder: 'border-yellow-600' },
+  HIGH: { label: 'High', color: '#ea580c', bgColor: '#fed7aa', tw: 'text-orange-600', twBg: 'bg-orange-200', twBorder: 'border-orange-600' },
+  CRITICAL: { label: 'Critical', color: '#dc2626', bgColor: '#fecaca', tw: 'text-red-600', twBg: 'bg-red-200', twBorder: 'border-red-600' },
 };
 
 // ---------------------------------------------------------------------------
@@ -64,11 +77,11 @@ const CollateralRiskPage = () => {
   // Loading
   if (!demo && isLoading) {
     return (
-      <div style={styles.container}>
-        <h2 style={styles.heading}>Collateral Risk Portfolio</h2>
-        <div style={styles.placeholder}>
-          <div style={styles.spinner} />
-          <p style={styles.placeholderText}>Loading collateral risk data...</p>
+      <div>
+        <h2 className="mb-6 text-2xl font-bold">Collateral Risk Portfolio</h2>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-card p-16 text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-[3px] border-border border-t-blue-500" />
+          <p className="max-w-[480px] text-sm leading-relaxed text-slate-400">Loading collateral risk data...</p>
         </div>
       </div>
     );
@@ -77,10 +90,10 @@ const CollateralRiskPage = () => {
   // Error
   if (!demo && isError) {
     return (
-      <div style={styles.container}>
-        <h2 style={styles.heading}>Collateral Risk Portfolio</h2>
-        <div style={{ ...styles.placeholder, borderColor: '#fecaca' }}>
-          <p style={{ ...styles.placeholderText, color: '#dc2626' }}>
+      <div>
+        <h2 className="mb-6 text-2xl font-bold">Collateral Risk Portfolio</h2>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-red-200 bg-card p-16 text-center">
+          <p className="max-w-[480px] text-sm leading-relaxed text-red-600">
             {error instanceof Error ? error.message : 'Failed to load collateral risk data'}
           </p>
         </div>
@@ -88,12 +101,28 @@ const CollateralRiskPage = () => {
     );
   }
 
+  // Empty state
+  if (!demo && data.totalCases === 0 && data.cases.length === 0) {
+    return (
+      <div>
+        <h2 className="mb-6 text-2xl font-bold">Collateral Risk Portfolio</h2>
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center py-16 text-center">
+            <ShieldAlert className="mb-4 h-12 w-12 text-muted-foreground/50" />
+            <h3 className="mb-2 text-lg font-semibold">No risk data</h3>
+            <p className="text-sm text-muted-foreground">Risk portfolio data will appear once cases are assessed.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>Collateral Risk Portfolio</h2>
+    <div>
+      <h2 className="mb-6 text-2xl font-bold">Collateral Risk Portfolio</h2>
 
       {/* Risk Tier Summary */}
-      <div style={styles.tierGrid}>
+      <div className="mb-6 grid grid-cols-4 gap-4">
         {(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const).map((tier) => {
           const config = RISK_TIER_CONFIG[tier];
           const count = data[tier.toLowerCase() as 'low' | 'medium' | 'high' | 'critical'];
@@ -103,17 +132,16 @@ const CollateralRiskPage = () => {
             <button
               key={tier}
               onClick={() => setTierFilter(isActive ? '' : tier)}
-              style={{
-                ...styles.tierCard,
-                borderColor: isActive ? config.color : 'var(--color-border)',
-                borderWidth: isActive ? '2px' : '1px',
-                backgroundColor: isActive ? config.bgColor : 'var(--color-surface)',
-              }}
+              className={cn(
+                'flex cursor-pointer flex-col items-center gap-1 rounded-lg border bg-card p-5 transition-colors',
+                isActive && cn(config.twBorder, config.twBg, 'border-2'),
+                !isActive && 'border-border',
+              )}
               type="button"
             >
-              <span style={{ ...styles.tierLabel, color: config.color }}>{config.label}</span>
-              <span style={{ ...styles.tierCount, color: config.color }}>{count}</span>
-              <span style={styles.tierPercent}>
+              <span className={cn('text-xs font-semibold uppercase', config.tw)}>{config.label}</span>
+              <span className={cn('text-3xl font-bold', config.tw)}>{count}</span>
+              <span className="text-sm text-slate-400">
                 {data.totalCases > 0 ? `${Math.round((count / data.totalCases) * 100)}%` : '0%'}
               </span>
             </button>
@@ -122,189 +150,156 @@ const CollateralRiskPage = () => {
       </div>
 
       {/* Visual Bar Chart */}
-      <div style={styles.chartPanel}>
-        <h3 style={styles.panelTitle}>Risk Distribution</h3>
-        <div style={styles.barChart}>
-          {(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const).map((tier) => {
-            const config = RISK_TIER_CONFIG[tier];
-            const count = data[tier.toLowerCase() as 'low' | 'medium' | 'high' | 'critical'];
-            const maxCount = Math.max(data.low, data.medium, data.high, data.critical, 1);
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Risk Distribution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-3">
+            {(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const).map((tier) => {
+              const config = RISK_TIER_CONFIG[tier];
+              const count = data[tier.toLowerCase() as 'low' | 'medium' | 'high' | 'critical'];
+              const maxCount = Math.max(data.low, data.medium, data.high, data.critical, 1);
 
-            return (
-              <div key={tier} style={styles.barRow}>
-                <span style={styles.barLabel}>{config.label}</span>
-                <div style={styles.barTrack}>
-                  <div
-                    style={{
-                      ...styles.barFill,
-                      width: `${(count / maxCount) * 100}%`,
-                      backgroundColor: config.color,
-                    }}
-                  />
+              return (
+                <div key={tier} className="flex items-center gap-3">
+                  <span className="w-20 shrink-0 text-sm font-medium">{config.label}</span>
+                  <div className="h-6 flex-1 overflow-hidden rounded bg-slate-100">
+                    <div
+                      className="h-full rounded transition-[width] duration-300 ease-in-out"
+                      style={{
+                        width: `${(count / maxCount) * 100}%`,
+                        backgroundColor: config.color,
+                      }}
+                    />
+                  </div>
+                  <span className="w-10 text-right text-sm font-semibold">{count}</span>
                 </div>
-                <span style={styles.barCount}>{count}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Document Completeness Trends */}
-      <div style={styles.chartPanel}>
-        <h3 style={styles.panelTitle}>Document Completeness Overview</h3>
-        <div style={styles.completenessGrid}>
-          {([
-            { label: 'Complete (100%)', min: 100, max: 100, color: '#16a34a' },
-            { label: 'Near Complete (75-99%)', min: 75, max: 99, color: '#ca8a04' },
-            { label: 'Partial (25-74%)', min: 25, max: 74, color: '#ea580c' },
-            { label: 'Low (0-24%)', min: 0, max: 24, color: '#dc2626' },
-          ] as const).map((band) => {
-            const count = data.cases.filter(
-              (c: RiskSummaryCase) => c.documentCompleteness >= band.min && c.documentCompleteness <= band.max,
-            ).length;
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Document Completeness Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+            {([
+              { label: 'Complete (100%)', min: 100, max: 100, color: '#16a34a', twBg: 'bg-green-600' },
+              { label: 'Near Complete (75-99%)', min: 75, max: 99, color: '#ca8a04', twBg: 'bg-yellow-600' },
+              { label: 'Partial (25-74%)', min: 25, max: 74, color: '#ea580c', twBg: 'bg-orange-600' },
+              { label: 'Low (0-24%)', min: 0, max: 24, color: '#dc2626', twBg: 'bg-red-600' },
+            ] as const).map((band) => {
+              const count = data.cases.filter(
+                (c: RiskSummaryCase) => c.documentCompleteness >= band.min && c.documentCompleteness <= band.max,
+              ).length;
 
-            return (
-              <div key={band.label} style={styles.completenessCard}>
-                <div style={{ ...styles.completenessIndicator, backgroundColor: band.color }} />
-                <div>
-                  <span style={styles.completenessLabel}>{band.label}</span>
-                  <span style={{ ...styles.completenessCount, color: band.color }}>{count} cases</span>
+              return (
+                <div key={band.label} className="flex items-center gap-3 rounded-md border p-3">
+                  <div className={cn('h-10 w-2 shrink-0 rounded', band.twBg)} />
+                  <div>
+                    <span className="block text-sm font-medium">{band.label}</span>
+                    <span className="block text-lg font-bold" style={{ color: band.color }}>{count} cases</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Risk Breakdown Table */}
-      <div style={styles.tableSection}>
-        <div style={styles.tableHeader}>
-          <h3 style={styles.panelTitle}>
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-base font-semibold">
             {tierFilter ? `${RISK_TIER_CONFIG[tierFilter].label} Risk Cases` : 'All Cases'} ({filteredCases.length})
           </h3>
           {tierFilter && (
-            <button onClick={() => setTierFilter('')} style={styles.clearFilter} type="button">
+            <Button variant="outline" size="sm" onClick={() => setTierFilter('')}>
               Clear filter
-            </button>
+            </Button>
           )}
         </div>
-        <div style={styles.tableContainer}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.th}>Case #</th>
-                <th style={styles.th}>Type</th>
-                <th style={styles.th}>Risk Score</th>
-                <th style={styles.th}>Tier</th>
-                <th style={styles.th}>Location</th>
-                <th style={styles.th}>Status</th>
-                <th style={styles.th}>Doc Completeness</th>
-                <th style={styles.th}>Valuation Variance</th>
-              </tr>
-            </thead>
-            <tbody>
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="whitespace-nowrap text-xs uppercase">Case #</TableHead>
+                <TableHead className="whitespace-nowrap text-xs uppercase">Type</TableHead>
+                <TableHead className="whitespace-nowrap text-xs uppercase">Risk Score</TableHead>
+                <TableHead className="whitespace-nowrap text-xs uppercase">Tier</TableHead>
+                <TableHead className="whitespace-nowrap text-xs uppercase">Location</TableHead>
+                <TableHead className="whitespace-nowrap text-xs uppercase">Status</TableHead>
+                <TableHead className="whitespace-nowrap text-xs uppercase">Doc Completeness</TableHead>
+                <TableHead className="whitespace-nowrap text-xs uppercase">Valuation Variance</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filteredCases.map((c: RiskSummaryCase) => {
                 const tierConfig = RISK_TIER_CONFIG[c.riskTier] ?? RISK_TIER_CONFIG['LOW'];
                 return (
-                  <tr
+                  <TableRow
                     key={c.id}
                     onClick={() => navigate(`/cases/${c.id}`)}
-                    style={styles.tr}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#f1f5f9'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
+                    className="cursor-pointer"
                   >
-                    <td style={styles.td}><strong>{c.caseNumber}</strong></td>
-                    <td style={styles.td}>{c.caseType.replace(/_/g, ' ')}</td>
-                    <td style={styles.td}>{c.riskScore}</td>
-                    <td style={styles.td}>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '0.15rem 0.5rem',
-                        borderRadius: '9999px',
-                        fontSize: '0.7rem',
-                        fontWeight: 600,
-                        backgroundColor: tierConfig.bgColor,
-                        color: tierConfig.color,
-                      }}>
+                    <TableCell className="whitespace-nowrap"><strong>{c.caseNumber}</strong></TableCell>
+                    <TableCell className="whitespace-nowrap">{c.caseType.replace(/_/g, ' ')}</TableCell>
+                    <TableCell className="whitespace-nowrap">{c.riskScore}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          'rounded-full text-[0.7rem]',
+                          tierConfig.twBg,
+                          tierConfig.tw,
+                          'border-transparent',
+                        )}
+                      >
                         {tierConfig.label}
-                      </span>
-                    </td>
-                    <td style={styles.td}>{c.propertyCity ?? 'N/A'}</td>
-                    <td style={styles.td}>{c.status.replace(/_/g, ' ')}</td>
-                    <td style={styles.td}>
-                      <div style={styles.completenessBar}>
-                        <div style={{
-                          ...styles.completenessBarFill,
-                          width: `${c.documentCompleteness}%`,
-                          backgroundColor: c.documentCompleteness === 100 ? '#16a34a' : c.documentCompleteness >= 75 ? '#ca8a04' : '#dc2626',
-                        }} />
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">{c.propertyCity ?? 'N/A'}</TableCell>
+                    <TableCell className="whitespace-nowrap">{c.status.replace(/_/g, ' ')}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <div className="mr-2 inline-block h-2 w-[60px] overflow-hidden rounded bg-slate-100 align-middle">
+                        <div
+                          className="h-full rounded"
+                          style={{
+                            width: `${c.documentCompleteness}%`,
+                            backgroundColor: c.documentCompleteness === 100 ? '#16a34a' : c.documentCompleteness >= 75 ? '#ca8a04' : '#dc2626',
+                          }}
+                        />
                       </div>
-                      <span style={styles.completenessText}>{c.documentCompleteness}%</span>
-                    </td>
-                    <td style={styles.td}>
+                      <span className="text-sm text-slate-500">{c.documentCompleteness}%</span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
                       {c.valuationVariance ? (
-                        <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '0.8rem' }}>FLAGGED</span>
+                        <span className="text-sm font-semibold text-red-600">FLAGGED</span>
                       ) : (
-                        <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>--</span>
+                        <span className="text-sm text-slate-400">--</span>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
               {filteredCases.length === 0 && (
-                <tr>
-                  <td colSpan={8} style={{ ...styles.td, textAlign: 'center', color: '#94a3b8' }}>
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-slate-400">
                     No cases found.
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               )}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </Card>
       </div>
     </div>
   );
-};
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const styles: Record<string, CSSProperties> = {
-  container: { padding: 0 },
-  heading: { margin: '0 0 1.5rem 0', fontSize: '1.5rem', fontWeight: 700 },
-  tierGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' },
-  tierCard: { backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', transition: 'border-color 0.2s' },
-  tierLabel: { fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600 },
-  tierCount: { fontSize: '2rem', fontWeight: 700 },
-  tierPercent: { fontSize: '0.8rem', color: '#94a3b8' },
-  chartPanel: { backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '1.25rem', marginBottom: '1.5rem' },
-  panelTitle: { fontSize: '1rem', fontWeight: 600, margin: '0 0 1rem 0' },
-  barChart: { display: 'flex', flexDirection: 'column', gap: '0.75rem' },
-  barRow: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
-  barLabel: { width: '80px', fontSize: '0.8rem', fontWeight: 500, flexShrink: 0 },
-  barTrack: { flex: 1, height: '24px', backgroundColor: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: '4px', transition: 'width 0.3s ease' },
-  barCount: { width: '40px', textAlign: 'right', fontSize: '0.85rem', fontWeight: 600 },
-  completenessGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' },
-  completenessCard: { display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '6px' },
-  completenessIndicator: { width: '8px', height: '40px', borderRadius: '4px', flexShrink: 0 },
-  completenessLabel: { display: 'block', fontSize: '0.8rem', fontWeight: 500 },
-  completenessCount: { display: 'block', fontSize: '1.1rem', fontWeight: 700 },
-  tableSection: { marginTop: '0' },
-  tableHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' },
-  clearFilter: { background: 'none', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '0.25rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem', color: '#64748b' },
-  tableContainer: { overflowX: 'auto', border: '1px solid var(--color-border)', borderRadius: '8px', backgroundColor: 'var(--color-surface)' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' },
-  th: { textAlign: 'left', padding: '0.75rem 1rem', borderBottom: '2px solid var(--color-border)', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' },
-  tr: { cursor: 'pointer', transition: 'background-color 0.15s' },
-  td: { padding: '0.6rem 1rem', borderBottom: '1px solid var(--color-border)', whiteSpace: 'nowrap' },
-  completenessBar: { display: 'inline-block', width: '60px', height: '8px', backgroundColor: '#f1f5f9', borderRadius: '4px', overflow: 'hidden', verticalAlign: 'middle', marginRight: '0.5rem' },
-  completenessBarFill: { height: '100%', borderRadius: '4px' },
-  completenessText: { fontSize: '0.8rem', color: '#64748b' },
-  placeholder: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem', border: '1px dashed var(--color-border)', borderRadius: '8px', backgroundColor: 'var(--color-surface)', textAlign: 'center' },
-  placeholderText: { margin: 0, fontSize: '0.875rem', color: '#94a3b8', maxWidth: '480px', lineHeight: 1.5 },
-  spinner: { width: '32px', height: '32px', border: '3px solid var(--color-border)', borderTop: '3px solid var(--color-accent, #3b82f6)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginBottom: '1rem' },
 };
 
 export default CollateralRiskPage;

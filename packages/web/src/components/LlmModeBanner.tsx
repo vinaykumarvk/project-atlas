@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { apiGet } from '../api/client';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface HealthStatus {
   llmMode?: string;
@@ -27,42 +30,32 @@ export function LlmModeBanner() {
   if (!mode || mode === 'ON' || dismissed) return null;
 
   const isDegraded = mode === 'DEGRADED';
-  const bgColor = isDegraded ? '#fef3c7' : '#fee2e2';
-  const textColor = isDegraded ? '#92400e' : '#991b1b';
-  const borderColor = isDegraded ? '#f59e0b' : '#ef4444';
 
   return (
-    <div
+    <Alert
       data-testid="llm-mode-banner"
-      style={{
-        padding: '12px 16px',
-        backgroundColor: bgColor,
-        color: textColor,
-        border: `1px solid ${borderColor}`,
-        borderRadius: 8,
-        marginBottom: 16,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}
+      className={cn(
+        'mb-4 flex items-center justify-between',
+        isDegraded
+          ? 'border-amber-500 bg-amber-50 text-amber-800'
+          : 'border-red-500 bg-red-50 text-red-800',
+      )}
     >
-      <span>
-        {isDegraded
-          ? 'LLM mode is DEGRADED — classification is running in ONNX-only mode. LLM augmentation is unavailable.'
-          : 'LLM mode is OFF — all emails are routed to manual triage. Classification pipeline is disabled.'}
-      </span>
+      <div className="flex items-center gap-2">
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        <AlertDescription>
+          {isDegraded
+            ? 'LLM mode is DEGRADED — classification is running in ONNX-only mode. LLM augmentation is unavailable.'
+            : 'LLM mode is OFF — all emails are routed to manual triage. Classification pipeline is disabled.'}
+        </AlertDescription>
+      </div>
       <button
         onClick={() => setDismissed(true)}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          fontSize: 18,
-          color: textColor,
-        }}
+        className="ml-2 shrink-0 text-current hover:opacity-70"
+        aria-label="Dismiss"
       >
-        ×
+        <X className="h-4 w-4" />
       </button>
-    </div>
+    </Alert>
   );
 }

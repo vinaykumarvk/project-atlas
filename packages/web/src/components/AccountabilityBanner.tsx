@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { cn } from '@/lib/utils';
 
 interface AccountabilityBannerProps {
   confidenceBand?: string;
@@ -17,43 +17,34 @@ export function AccountabilityBanner({
   modelVersion,
 }: AccountabilityBannerProps) {
   return (
-    <div style={styles.banner}>
-      <div style={styles.bannerContent}>
-        <strong style={styles.bannerTitle}>Advisory Notice</strong>
-        <span style={styles.bannerText}>
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <strong className="text-xs uppercase tracking-wide text-blue-300">Advisory Notice</strong>
+        <span className="text-sm leading-relaxed text-slate-200">
           You are the final accountable party for this case. AI suggestions are advisory.
         </span>
       </div>
       {(confidenceBand || llmMode || modelVersion) && (
-        <div style={styles.meta}>
+        <div className="flex flex-wrap gap-2">
           {llmMode && (
-            <span style={styles.metaTag}>
+            <span className="whitespace-nowrap rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
               LLM Mode: <strong>{llmMode}</strong>
             </span>
           )}
           {confidenceBand && (
             <span
-              style={{
-                ...styles.metaTag,
-                backgroundColor:
-                  confidenceBand === 'GREEN'
-                    ? '#d1fae5'
-                    : confidenceBand === 'AMBER'
-                      ? '#fef3c7'
-                      : '#fee2e2',
-                color:
-                  confidenceBand === 'GREEN'
-                    ? '#065f46'
-                    : confidenceBand === 'AMBER'
-                      ? '#92400e'
-                      : '#991b1b',
-              }}
+              className={cn(
+                'whitespace-nowrap rounded px-2 py-0.5 text-xs',
+                confidenceBand === 'GREEN' && 'bg-emerald-100 text-emerald-800',
+                confidenceBand === 'AMBER' && 'bg-amber-100 text-amber-800',
+                confidenceBand !== 'GREEN' && confidenceBand !== 'AMBER' && 'bg-red-100 text-red-800',
+              )}
             >
               Confidence: <strong>{confidenceBand}</strong>
             </span>
           )}
           {modelVersion && (
-            <span style={styles.metaTag}>
+            <span className="whitespace-nowrap rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
               Model: <strong>{modelVersion}</strong>
             </span>
           )}
@@ -62,48 +53,3 @@ export function AccountabilityBanner({
     </div>
   );
 }
-
-const styles: Record<string, CSSProperties> = {
-  banner: {
-    backgroundColor: '#1e293b',
-    border: '1px solid #334155',
-    borderRadius: '8px',
-    padding: '0.75rem 1rem',
-    marginBottom: '1rem',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: '0.5rem',
-  },
-  bannerContent: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    flexWrap: 'wrap',
-  },
-  bannerTitle: {
-    fontSize: '0.8rem',
-    color: '#93c5fd',
-    textTransform: 'uppercase',
-    letterSpacing: '0.025em',
-  },
-  bannerText: {
-    fontSize: '0.85rem',
-    color: '#e2e8f0',
-    lineHeight: 1.4,
-  },
-  meta: {
-    display: 'flex',
-    gap: '0.5rem',
-    flexWrap: 'wrap',
-  },
-  metaTag: {
-    fontSize: '0.75rem',
-    padding: '0.2rem 0.5rem',
-    borderRadius: '4px',
-    backgroundColor: '#f1f5f9',
-    color: '#475569',
-    whiteSpace: 'nowrap',
-  },
-};

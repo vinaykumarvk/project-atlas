@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { isDemoMode } from '../config/flags';
@@ -15,6 +15,35 @@ import type {
 } from '../hooks/useDashboard';
 import { apiGet } from '../api/client';
 import { useAuth } from '../auth';
+import { cn } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
+import {
+  BarChart3,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  Loader2,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  ShieldCheck,
+  Target,
+  RefreshCw,
+  Users,
+  Building2,
+  Layers,
+  Activity,
+} from 'lucide-react';
 
 // --- At-Risk Prediction types (FR-062.A3) ---
 interface BreachPrediction {
@@ -58,6 +87,13 @@ interface ActivityItem {
   description: string;
   user: string;
 }
+
+const summaryCardColorClass: Record<string, string> = {
+  '#3b82f6': 'text-blue-500',
+  '#16a34a': 'text-green-600',
+  '#ca8a04': 'text-yellow-600',
+  '#dc2626': 'text-red-600',
+};
 
 const demoSummaryCards: SummaryCard[] = [
   { title: 'Total Cases', value: 247, color: '#3b82f6', link: '/cases' },
@@ -224,12 +260,6 @@ const demoBusinessValue = {
   slaLeakageByRegion: { Mumbai: 91.2, Delhi: 88.4, Bangalore: 94.7, Chennai: 90.1 },
 };
 
-const trendArrows: Record<string, string> = {
-  INCREASING: 'Trend Up',
-  DECREASING: 'Trend Down',
-  STABLE: 'Trend Stable',
-};
-
 /** FR-110.A2: Map of widget IDs to the roles allowed to view them. */
 const WIDGET_ROLE_MAP: Record<string, string[]> = {
   'sla-compliance': ['COMPLIANCE_OFFICER', 'SYS_ADMIN', 'LEAD'],
@@ -245,9 +275,44 @@ const WIDGET_ROLE_MAP: Record<string, string[]> = {
 /** FR-110.A2: Check whether the current user has at least one of the required roles for a widget. */
 function canViewWidget(widgetId: string, userRoles: string[]): boolean {
   const allowedRoles = WIDGET_ROLE_MAP[widgetId];
-  if (!allowedRoles) return true; // No restriction — visible to all
+  if (!allowedRoles) return true; // No restriction -- visible to all
   return userRoles.some((role) => allowedRoles.includes(role));
 }
+
+/** Map summary card title to a Lucide icon */
+function summaryCardIcon(title: string) {
+  switch (title) {
+    case 'Total Cases': return <BarChart3 className="h-5 w-5 text-blue-500" />;
+    case 'On Track': return <CheckCircle className="h-5 w-5 text-green-600" />;
+    case 'At Risk': return <AlertTriangle className="h-5 w-5 text-yellow-600" />;
+    case 'Breached': return <Clock className="h-5 w-5 text-red-600" />;
+    default: return <BarChart3 className="h-5 w-5 text-muted-foreground" />;
+  }
+}
+
+/** Helper: colour class for compliance percentages */
+function complianceColor(val: number): string {
+  if (val >= 90) return 'text-green-600';
+  if (val >= 75) return 'text-yellow-600';
+  return 'text-red-600';
+}
+
+/** Helper: colour class for metric values [0..1] */
+function metricColor(val: number): string {
+  if (val >= 0.9) return 'text-green-600';
+  if (val >= 0.75) return 'text-yellow-600';
+  return 'text-red-600';
+}
+
+/** Status bar colour classes */
+const statusBarColors: Record<string, string> = {
+  New: 'bg-blue-500',
+  Triaged: 'bg-indigo-500',
+  'In Progress': 'bg-amber-500',
+  'Pending Vendor': 'bg-pink-500',
+  Resolved: 'bg-emerald-500',
+  Closed: 'bg-slate-400',
+};
 
 const DashboardPage = () => {
   const demo = isDemoMode();
@@ -256,7 +321,7 @@ const DashboardPage = () => {
   const { user } = useAuth();
   const userRoles: string[] = user?.roles ?? ['SYS_ADMIN'];
 
-  // Live data hooks — called unconditionally (rules of hooks)
+  // Live data hooks -- called unconditionally (rules of hooks)
   const { data: metrics, isLoading, isError, error } = useDashboardMetrics();
   const { data: extendedRaw } = useExtendedDashboard();
   const { data: complianceRaw } = useComplianceByDimension();
@@ -357,15 +422,6 @@ const DashboardPage = () => {
         { status: 'Closed', count: 22 },
       ];
 
-  const statusColors: Record<string, string> = {
-    New: '#3b82f6',
-    Triaged: '#6366f1',
-    'In Progress': '#f59e0b',
-    'Pending Vendor': '#ec4899',
-    Resolved: '#10b981',
-    Closed: '#94a3b8',
-  };
-
   const maxCount = Math.max(...statusBreakdown.map((s) => s.count), 1);
 
   // Extended dashboard data
@@ -386,18 +442,14 @@ const DashboardPage = () => {
   // FR-111 A4: Trend window toggle state
   const [trendWindow, setTrendWindow] = useState<30 | 60 | 90>(30);
 
-  // Hover state for cards
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
-  const [hoveredBar, setHoveredBar] = useState<string | null>(null);
-
   // Loading state (live mode only)
   if (!demo && isLoading) {
     return (
-      <div style={styles.container}>
-        <h2 style={styles.heading}>Dashboard</h2>
-        <div style={styles.placeholder}>
-          <div style={styles.spinner} />
-          <p style={styles.placeholderText}>Loading dashboard metrics...</p>
+      <div role="region" aria-label="Dashboard">
+        <h2 className="mb-6 text-2xl font-bold">Dashboard</h2>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-card p-16 text-center">
+          <Loader2 className="mb-4 h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading dashboard metrics...</p>
         </div>
       </div>
     );
@@ -406,800 +458,672 @@ const DashboardPage = () => {
   // Error state (live mode only)
   if (!demo && isError) {
     return (
-      <div style={styles.container}>
-        <h2 style={styles.heading}>Dashboard</h2>
-        <div style={{ ...styles.placeholder, borderColor: '#fecaca' }}>
-          <h3 style={{ ...styles.placeholderTitle, color: '#dc2626' }}>
+      <div role="region" aria-label="Dashboard">
+        <h2 className="mb-6 text-2xl font-bold">Dashboard</h2>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-red-200 bg-card p-16 text-center">
+          <h3 className="mb-2 text-lg font-semibold text-red-600">
             Failed to load dashboard
           </h3>
-          <p style={styles.placeholderText}>
+          <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
             {error instanceof Error ? error.message : 'An unexpected error occurred.'}
           </p>
-          <button
+          <Button
+            variant="outline"
             onClick={() => window.location.reload()}
-            style={styles.retryButton}
+            className="mt-4"
           >
+            <RefreshCw className="mr-2 h-4 w-4" />
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
-  return (
-    <div style={styles.container} role="region" aria-label="Dashboard">
-      <h2 style={styles.heading}>Dashboard</h2>
+  // Empty state (live mode, no data)
+  if (!demo && summaryCards.length === 0) {
+    return (
+      <div role="region" aria-label="Dashboard">
+        <h2 className="mb-6 text-2xl font-bold">Dashboard</h2>
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center py-16 text-center">
+            <BarChart3 className="mb-4 h-12 w-12 text-muted-foreground/50" />
+            <h3 className="mb-2 text-lg font-semibold">No metrics available</h3>
+            <p className="text-sm text-muted-foreground">Dashboard metrics will appear once cases are processed.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-      {/* Summary Cards — clickable drill-down links */}
-      <div style={styles.cardsGrid} role="list" aria-label="Summary metrics">
+  return (
+    <div role="region" aria-label="Dashboard">
+      <h2 className="mb-6 text-2xl font-bold">Dashboard</h2>
+
+      {/* Summary Cards -- clickable drill-down links */}
+      <div className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4" role="list" aria-label="Summary metrics">
         {summaryCards.map((card) => (
-          <div
+          <Card
             key={card.title}
             role="link"
             data-testid={`card-${card.title.toLowerCase().replace(/\s+/g, '-')}`}
-            style={{
-              ...styles.card,
-              cursor: 'pointer',
-              transform: hoveredCard === card.title ? 'translateY(-2px)' : 'none',
-              boxShadow: hoveredCard === card.title ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
-              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-            }}
+            className="cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
             onClick={() => navigate(card.link)}
-            onMouseEnter={() => setHoveredCard(card.title)}
-            onMouseLeave={() => setHoveredCard(null)}
           >
-            <h3 style={styles.cardTitle}>{card.title}</h3>
-            <span style={{ ...styles.cardValue, color: card.color }}>{card.value}</span>
-          </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {card.title}
+              </CardTitle>
+              {summaryCardIcon(card.title)}
+            </CardHeader>
+            <CardContent>
+              <span className={cn('text-3xl font-bold', summaryCardColorClass[card.color] || 'text-foreground')}>{card.value}</span>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
       {/* Chart and Activity Feed */}
-      <div style={styles.twoColumnGrid}>
+      <div className="mb-6 grid grid-cols-2 gap-6">
         {/* Chart */}
-        <div style={styles.panel}>
-          <h3 style={styles.panelTitle}>Cases by Status</h3>
-          <div style={styles.chartPlaceholder}>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Cases by Status</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
             {statusBreakdown.map((item) => (
               <div
                 key={item.status}
                 role="link"
                 data-testid={`bar-${item.status.toLowerCase().replace(/\s+/g, '-')}`}
-                style={{
-                  ...styles.chartBar,
-                  cursor: 'pointer',
-                  backgroundColor: hoveredBar === item.status ? 'rgba(0,0,0,0.03)' : 'transparent',
-                  borderRadius: '4px',
-                  padding: '2px 4px',
-                  transition: 'background-color 0.2s ease',
-                }}
+                className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 transition-colors hover:bg-muted/50"
                 onClick={() => navigate(`/cases?status=${encodeURIComponent(item.status)}`)}
-                onMouseEnter={() => setHoveredBar(item.status)}
-                onMouseLeave={() => setHoveredBar(null)}
               >
-                <span style={styles.chartLabel}>{item.status}</span>
+                <span className="w-[100px] shrink-0 text-xs">{item.status}</span>
                 <div
-                  style={{
-                    ...styles.chartFill,
-                    width: `${(item.count / maxCount) * 100}%`,
-                    backgroundColor: statusColors[item.status] || '#94a3b8',
-                  }}
+                  className={cn('h-5 rounded transition-all duration-300', statusBarColors[item.status] || 'bg-slate-400')}
+                  style={{ width: `${(item.count / maxCount) * 100}%` }}
                 />
-                <span style={styles.chartCount}>{item.count}</span>
+                <span className="min-w-[30px] text-xs font-semibold">{item.count}</span>
               </div>
             ))}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Recent Activity Feed */}
-        <div style={styles.panel}>
-          <h3 style={styles.panelTitle}>Recent Activity</h3>
-          <div style={styles.activityList}>
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base font-semibold">Recent Activity</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
             {recentActivity.map((item) => (
-              <div key={item.id} style={styles.activityItem}>
-                <div style={styles.activityMeta}>
-                  <span style={styles.activityUser}>{item.user}</span>
-                  <span style={styles.activityTime}>{item.timestamp}</span>
+              <div key={item.id} className="border-b pb-3 last:border-b-0">
+                <div className="mb-1 flex justify-between">
+                  <span className="text-xs font-semibold text-primary">{item.user}</span>
+                  <span className="text-[0.7rem] text-muted-foreground">{item.timestamp}</span>
                 </div>
-                <p style={styles.activityDesc}>{item.description}</p>
+                <p className="m-0 text-sm leading-relaxed">{item.description}</p>
               </div>
             ))}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Extended Dashboard — FR-110 A1 Expanded Tiles */}
-      <div style={styles.threeColumnGrid}>
-        <div style={styles.panel}>
-          <h3 style={styles.panelTitle}>Top FPRs by Open Cases</h3>
-          {extendedData.casesByFpr.length === 0 ? (
-            <p style={styles.placeholderText}>No data available</p>
-          ) : (
-            <div style={styles.breakdownList}>
-              {extendedData.casesByFpr.map((item) => (
-                <div key={item.fprId} style={styles.breakdownRow}>
-                  <span style={styles.breakdownLabel}>{item.fprName}</span>
-                  <span style={styles.breakdownValue}>{item.count}</span>
-                </div>
-              ))}
+      {/* Extended Dashboard -- FR-110 A1 Expanded Tiles */}
+      <div className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base font-semibold">Top FPRs by Open Cases</CardTitle>
             </div>
-          )}
-        </div>
+          </CardHeader>
+          <CardContent>
+            {extendedData.casesByFpr.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No data available</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {extendedData.casesByFpr.map((item) => (
+                  <div key={item.fprId} className="flex items-center justify-between border-b py-1.5">
+                    <span className="text-sm">{item.fprName}</span>
+                    <Badge variant="secondary">{item.count}</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-        <div style={styles.panel}>
-          <h3 style={styles.panelTitle}>Top Vendors by Open Cases</h3>
-          {extendedData.casesByVendor.length === 0 ? (
-            <p style={styles.placeholderText}>No data available</p>
-          ) : (
-            <div style={styles.breakdownList}>
-              {extendedData.casesByVendor.map((item) => (
-                <div key={item.vendorId} style={styles.breakdownRow}>
-                  <span style={styles.breakdownLabel}>{item.vendorName}</span>
-                  <span style={styles.breakdownValue}>{item.count}</span>
-                </div>
-              ))}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base font-semibold">Top Vendors by Open Cases</CardTitle>
             </div>
-          )}
-        </div>
+          </CardHeader>
+          <CardContent>
+            {extendedData.casesByVendor.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No data available</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {extendedData.casesByVendor.map((item) => (
+                  <div key={item.vendorId} className="flex items-center justify-between border-b py-1.5">
+                    <span className="text-sm">{item.vendorName}</span>
+                    <Badge variant="secondary">{item.count}</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-        <div style={styles.panel}>
-          <h3 style={styles.panelTitle}>Queue by Case Type</h3>
-          {extendedData.queueByType.length === 0 ? (
-            <p style={styles.placeholderText}>No data available</p>
-          ) : (
-            <div style={styles.breakdownList}>
-              {extendedData.queueByType.map((item) => (
-                <div key={item.caseType} style={styles.breakdownRow}>
-                  <span style={styles.breakdownLabel}>{item.caseType}</span>
-                  <span style={styles.breakdownValue}>{item.count}</span>
-                </div>
-              ))}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Layers className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base font-semibold">Queue by Case Type</CardTitle>
             </div>
-          )}
-        </div>
+          </CardHeader>
+          <CardContent>
+            {extendedData.queueByType.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No data available</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {extendedData.queueByType.map((item) => (
+                  <div key={item.caseType} className="flex items-center justify-between border-b py-1.5">
+                    <span className="text-sm">{item.caseType}</span>
+                    <Badge variant="secondary">{item.count}</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* SLA Compliance by Dimension — FR-111 A2 (FR-110.A2: role-gated) */}
-      {canViewWidget('sla-compliance', userRoles) && <div style={styles.panel}>
-        <h3 style={styles.panelTitle}>SLA Compliance</h3>
-        <div style={styles.complianceGrid}>
-          <div>
-            <h4 style={styles.complianceSubtitle}>By Case Type</h4>
-            {Object.entries(complianceData.byType).length === 0 ? (
-              <p style={styles.placeholderText}>No data</p>
-            ) : (
-              Object.entries(complianceData.byType).map(([key, val]) => (
-                <div key={key} style={styles.breakdownRow}>
-                  <span style={styles.breakdownLabel}>{key}</span>
-                  <span style={{
-                    ...styles.breakdownValue,
-                    color: val >= 90 ? '#16a34a' : val >= 75 ? '#ca8a04' : '#dc2626',
-                  }}>{val}%</span>
-                </div>
-              ))
-            )}
-          </div>
+      {/* SLA Compliance by Dimension -- FR-111 A2 (FR-110.A2: role-gated) */}
+      {canViewWidget('sla-compliance', userRoles) && (
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base font-semibold">SLA Compliance</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-6">
+              <div>
+                <h4 className="mb-3 text-sm font-semibold text-slate-600">By Case Type</h4>
+                {Object.entries(complianceData.byType).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No data</p>
+                ) : (
+                  Object.entries(complianceData.byType).map(([key, val]) => (
+                    <div key={key} className="flex items-center justify-between border-b py-1.5">
+                      <span className="text-sm">{key}</span>
+                      <span className={cn('text-sm font-semibold', complianceColor(val))}>{val}%</span>
+                    </div>
+                  ))
+                )}
+              </div>
 
-          <div>
-            <h4 style={styles.complianceSubtitle}>By FPR</h4>
-            {Object.entries(complianceData.byFpr).length === 0 ? (
-              <p style={styles.placeholderText}>No data</p>
-            ) : (
-              Object.entries(complianceData.byFpr).map(([key, val]) => (
-                <div key={key} style={styles.breakdownRow}>
-                  <span style={styles.breakdownLabel}>{key}</span>
-                  <span style={{
-                    ...styles.breakdownValue,
-                    color: val >= 90 ? '#16a34a' : val >= 75 ? '#ca8a04' : '#dc2626',
-                  }}>{val}%</span>
-                </div>
-              ))
-            )}
-          </div>
+              <div>
+                <h4 className="mb-3 text-sm font-semibold text-slate-600">By FPR</h4>
+                {Object.entries(complianceData.byFpr).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No data</p>
+                ) : (
+                  Object.entries(complianceData.byFpr).map(([key, val]) => (
+                    <div key={key} className="flex items-center justify-between border-b py-1.5">
+                      <span className="text-sm">{key}</span>
+                      <span className={cn('text-sm font-semibold', complianceColor(val))}>{val}%</span>
+                    </div>
+                  ))
+                )}
+              </div>
 
-          <div>
-            <h4 style={styles.complianceSubtitle}>By Vendor</h4>
-            {Object.entries(complianceData.byVendor).length === 0 ? (
-              <p style={styles.placeholderText}>No data</p>
-            ) : (
-              Object.entries(complianceData.byVendor).map(([key, val]) => (
-                <div key={key} style={styles.breakdownRow}>
-                  <span style={styles.breakdownLabel}>{key}</span>
-                  <span style={{
-                    ...styles.breakdownValue,
-                    color: val >= 90 ? '#16a34a' : val >= 75 ? '#ca8a04' : '#dc2626',
-                  }}>{val}%</span>
-                </div>
-              ))
-            )}
-          </div>
+              <div>
+                <h4 className="mb-3 text-sm font-semibold text-slate-600">By Vendor</h4>
+                {Object.entries(complianceData.byVendor).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No data</p>
+                ) : (
+                  Object.entries(complianceData.byVendor).map(([key, val]) => (
+                    <div key={key} className="flex items-center justify-between border-b py-1.5">
+                      <span className="text-sm">{key}</span>
+                      <span className={cn('text-sm font-semibold', complianceColor(val))}>{val}%</span>
+                    </div>
+                  ))
+                )}
+              </div>
 
-          <div>
-            <h4 style={styles.complianceSubtitle}>By Region</h4>
-            {Object.entries(complianceData.byRegion).length === 0 ? (
-              <p style={styles.placeholderText}>No data</p>
-            ) : (
-              Object.entries(complianceData.byRegion).map(([key, val]) => (
-                <div key={key} style={styles.breakdownRow}>
-                  <span style={styles.breakdownLabel}>{key}</span>
-                  <span style={{
-                    ...styles.breakdownValue,
-                    color: val >= 90 ? '#16a34a' : val >= 75 ? '#ca8a04' : '#dc2626',
-                  }}>{val}%</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>}
+              <div>
+                <h4 className="mb-3 text-sm font-semibold text-slate-600">By Region</h4>
+                {Object.entries(complianceData.byRegion).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No data</p>
+                ) : (
+                  Object.entries(complianceData.byRegion).map(([key, val]) => (
+                    <div key={key} className="flex items-center justify-between border-b py-1.5">
+                      <span className="text-sm">{key}</span>
+                      <span className={cn('text-sm font-semibold', complianceColor(val))}>{val}%</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Trend Data — FR-111 A4 with 30/60/90 day toggle */}
-      <div style={styles.panel}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h3 style={{ ...styles.panelTitle, margin: 0 }}>{trendWindow}-Day Trends</h3>
-          <div data-testid="trend-window-toggle" style={{ display: 'flex', gap: '0.25rem' }}>
-            {([30, 60, 90] as const).map((w) => (
-              <button
-                key={w}
-                data-testid={`trend-window-${w}`}
-                onClick={() => setTrendWindow(w)}
-                style={{
-                  padding: '0.35rem 0.75rem',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '4px',
-                  backgroundColor: trendWindow === w ? 'var(--color-accent, #3b82f6)' : 'var(--color-surface)',
-                  color: trendWindow === w ? '#fff' : 'var(--color-text)',
-                  cursor: 'pointer',
-                  fontSize: '0.8rem',
-                  fontWeight: trendWindow === w ? 600 : 400,
-                }}
-              >
-                {w}d
-              </button>
-            ))}
+      {/* Trend Data -- FR-111 A4 with 30/60/90 day toggle */}
+      <Card className="mb-6">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold">{trendWindow}-Day Trends</CardTitle>
+            <div data-testid="trend-window-toggle" className="flex gap-1">
+              {([30, 60, 90] as const).map((w) => (
+                <Button
+                  key={w}
+                  data-testid={`trend-window-${w}`}
+                  variant={trendWindow === w ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTrendWindow(w)}
+                >
+                  {w}d
+                </Button>
+              ))}
+            </div>
           </div>
-        </div>
-        {trendData.length === 0 ? (
-          <p style={styles.placeholderText}>No trend data available</p>
-        ) : (
-          <div style={styles.trendTableContainer}>
-            <table style={styles.trendTable}>
-              <thead>
-                <tr>
-                  <th style={styles.trendTh}>Date</th>
-                  <th style={styles.trendTh}>New Cases</th>
-                  <th style={styles.trendTh}>Resolved</th>
-                  <th style={styles.trendTh}>Breached</th>
-                </tr>
-              </thead>
-              <tbody>
+        </CardHeader>
+        <CardContent>
+          {trendData.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No trend data available</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>New Cases</TableHead>
+                  <TableHead>Resolved</TableHead>
+                  <TableHead>Breached</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {trendData.slice(-10).map((row) => (
-                  <tr key={row.date}>
-                    <td style={styles.trendTd}>{row.date}</td>
-                    <td style={styles.trendTd}>{row.newCases}</td>
-                    <td style={styles.trendTd}>{row.resolved}</td>
-                    <td style={{
-                      ...styles.trendTd,
-                      color: row.breached > 0 ? '#dc2626' : 'inherit',
-                      fontWeight: row.breached > 0 ? 600 : 400,
-                    }}>{row.breached}</td>
-                  </tr>
+                  <TableRow key={row.date}>
+                    <TableCell>{row.date}</TableCell>
+                    <TableCell>{row.newCases}</TableCell>
+                    <TableCell>{row.resolved}</TableCell>
+                    <TableCell className={cn(
+                      row.breached > 0 && 'font-semibold text-red-600'
+                    )}>
+                      {row.breached}
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Classification Accuracy Trend — FR-110.A3 (FR-110.A2: role-gated) */}
-      {canViewWidget('accuracy-trend', userRoles) && <div style={styles.panel} data-testid="accuracy-trend">
-        <h3 style={styles.panelTitle}>Classification Accuracy</h3>
-        {accuracyTrendData.length === 0 ? (
-          <p style={styles.placeholderText}>No accuracy data available</p>
-        ) : (
-          <div style={styles.trendTableContainer}>
-            <table style={styles.trendTable}>
-              <thead>
-                <tr>
-                  <th style={styles.trendTh}>Week</th>
-                  <th style={styles.trendTh}>Accuracy</th>
-                  <th style={styles.trendTh}>Total Predictions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {accuracyTrendData.map((row) => (
-                  <tr key={row.week}>
-                    <td style={styles.trendTd}>{row.week}</td>
-                    <td style={{
-                      ...styles.trendTd,
-                      color: row.accuracy >= 90 ? '#16a34a' : row.accuracy >= 75 ? '#ca8a04' : '#dc2626',
-                      fontWeight: 600,
-                    }}>
-                      {row.accuracy}%
-                    </td>
-                    <td style={styles.trendTd}>{row.totalPredictions}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>}
-
-      {/* Entity F1 Metrics — FR-161 (FR-110.A2: role-gated) */}
-      {canViewWidget('entity-f1-metrics', userRoles) && <div style={styles.panel} data-testid="entity-f1-metrics">
-        <h3 style={styles.panelTitle}>Entity F1 Metrics</h3>
-        {Object.keys(entityF1Data).length === 0 ? (
-          <p style={styles.placeholderText}>No entity F1 data available</p>
-        ) : (
-          <div style={styles.trendTableContainer}>
-            <table style={styles.trendTable}>
-              <thead>
-                <tr>
-                  <th style={styles.trendTh}>Entity Type</th>
-                  <th style={styles.trendTh}>Precision</th>
-                  <th style={styles.trendTh}>Recall</th>
-                  <th style={styles.trendTh}>F1</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(entityF1Data).map(([entityType, metrics]) => (
-                  <tr key={entityType}>
-                    <td style={styles.trendTd}>{entityType}</td>
-                    <td style={{ ...styles.trendTd, color: metrics.precision >= 0.9 ? '#16a34a' : metrics.precision >= 0.75 ? '#ca8a04' : '#dc2626', fontWeight: 600 }}>
-                      {(metrics.precision * 100).toFixed(1)}%
-                    </td>
-                    <td style={{ ...styles.trendTd, color: metrics.recall >= 0.9 ? '#16a34a' : metrics.recall >= 0.75 ? '#ca8a04' : '#dc2626', fontWeight: 600 }}>
-                      {(metrics.recall * 100).toFixed(1)}%
-                    </td>
-                    <td style={{ ...styles.trendTd, color: metrics.f1 >= 0.9 ? '#16a34a' : metrics.f1 >= 0.75 ? '#ca8a04' : '#dc2626', fontWeight: 600 }}>
-                      {(metrics.f1 * 100).toFixed(1)}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>}
-
-      {/* Override Rate — FR-161 (FR-110.A2: role-gated) */}
-      {canViewWidget('override-rate', userRoles) && <div style={styles.panel} data-testid="override-rate">
-        <h3 style={styles.panelTitle}>Override Rate</h3>
-        <div style={styles.cardsGrid}>
-          <div style={styles.card}>
-            <h3 style={styles.cardTitle}>Override Rate</h3>
-            <span style={{ ...styles.cardValue, color: overrideRateData.rate > 10 ? '#dc2626' : overrideRateData.rate > 5 ? '#ca8a04' : '#16a34a' }}>
-              {overrideRateData.rate}%
-            </span>
-          </div>
-          <div style={styles.card}>
-            <h3 style={styles.cardTitle}>Total Overrides</h3>
-            <span style={{ ...styles.cardValue, color: '#3b82f6' }}>{overrideRateData.overrideCount}</span>
-          </div>
-          <div style={styles.card}>
-            <h3 style={styles.cardTitle}>Total Predictions</h3>
-            <span style={{ ...styles.cardValue, color: '#6366f1' }}>{overrideRateData.totalPredictions}</span>
-          </div>
-        </div>
-      </div>}
-
-      {/* Low-Confidence Volume — FR-161 (FR-110.A2: role-gated) */}
-      {canViewWidget('low-confidence-volume', userRoles) && <div style={styles.panel} data-testid="low-confidence-volume">
-        <h3 style={styles.panelTitle}>Low-Confidence Volume</h3>
-        {lowConfidenceData.length === 0 ? (
-          <p style={styles.placeholderText}>No low-confidence data available</p>
-        ) : (
-          <div style={styles.trendTableContainer}>
-            <table style={styles.trendTable}>
-              <thead>
-                <tr>
-                  <th style={styles.trendTh}>Week</th>
-                  <th style={styles.trendTh}>Count</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lowConfidenceData.map((row) => (
-                  <tr key={row.week}>
-                    <td style={styles.trendTd}>{row.week}</td>
-                    <td style={{ ...styles.trendTd, color: row.count > 5 ? '#dc2626' : row.count > 3 ? '#ca8a04' : '#16a34a', fontWeight: 600 }}>
-                      {row.count}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>}
-
-      {/* At-Risk Predictions — FR-062.A3 (FR-110.A2: role-gated) */}
-      {canViewWidget('at-risk-predictions', userRoles) && <div style={styles.panel} data-testid="at-risk-predictions">
-        <h3 style={styles.panelTitle}>At-Risk Predictions</h3>
-        {atRiskPredictions.length === 0 ? (
-          <p style={styles.placeholderText}>No at-risk cases detected</p>
-        ) : (
-          <div style={styles.trendTableContainer}>
-            <table style={styles.trendTable}>
-              <thead>
-                <tr>
-                  <th style={styles.trendTh}>Case ID</th>
-                  <th style={styles.trendTh}>Breach Probability</th>
-                  <th style={styles.trendTh}>Risk Factors</th>
-                </tr>
-              </thead>
-              <tbody>
-                {atRiskPredictions.map((pred) => (
-                  <tr key={pred.caseId}>
-                    <td style={styles.trendTd}>{pred.caseId}</td>
-                    <td style={{
-                      ...styles.trendTd,
-                      color: pred.pBreach >= 0.8 ? '#dc2626' : pred.pBreach >= 0.6 ? '#ca8a04' : '#f59e0b',
-                      fontWeight: 600,
-                    }}>
-                      {Math.round(pred.pBreach * 100)}%
-                    </td>
-                    <td style={styles.trendTd}>
-                      {pred.riskFactors.join(', ')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>}
-
-      {/* Workload Forecast — FR-112.A3 (FR-110.A2: role-gated) */}
-      {canViewWidget('workload-forecast', userRoles) && <div style={styles.panel} data-testid="workload-forecast">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h3 style={{ ...styles.panelTitle, margin: 0 }}>Workload Forecast</h3>
-          {forecastData && (
-            <span
-              data-testid="forecast-trend"
-              style={{
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                color: forecastData.trend === 'INCREASING' ? '#dc2626'
-                  : forecastData.trend === 'DECREASING' ? '#16a34a'
-                  : '#6b7280',
-              }}
-            >
-              {trendArrows[forecastData.trend]} (Current: {forecastData.currentLoad})
-            </span>
+              </TableBody>
+            </Table>
           )}
-        </div>
-        {!forecastData || forecastData.points.length === 0 ? (
-          <p style={styles.placeholderText}>No forecast data available</p>
-        ) : (
-          <div style={styles.trendTableContainer}>
-            <table style={styles.trendTable}>
-              <thead>
-                <tr>
-                  <th style={styles.trendTh}>Date</th>
-                  <th style={styles.trendTh}>Predicted Volume</th>
-                  <th style={styles.trendTh}>Confidence (Low-High)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {forecastData.points.map((pt) => (
-                  <tr key={pt.date}>
-                    <td style={styles.trendTd}>{pt.date}</td>
-                    <td style={styles.trendTd}>{pt.predictedVolume}</td>
-                    <td style={styles.trendTd}>
-                      {pt.confidenceInterval.low} - {pt.confidenceInterval.high}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>}
+        </CardContent>
+      </Card>
 
-      {/* Compliance Summary Widget — FR-164 */}
-      <div data-testid="compliance-widget" style={{ background: '#fff', borderRadius: 8, padding: 16, border: '1px solid #e5e7eb', marginBottom: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: '1rem', fontWeight: 600 }}>Compliance Status</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <div style={{ padding: 8, background: '#d1fae5', borderRadius: 4 }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#065f46' }}>98%</div>
-            <div style={{ fontSize: '0.75rem', color: '#065f46' }}>GDPR Compliance</div>
-          </div>
-          <div style={{ padding: 8, background: '#dbeafe', borderRadius: 4 }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1e40af' }}>100%</div>
-            <div style={{ fontSize: '0.75rem', color: '#1e40af' }}>Data Retention</div>
-          </div>
-          <div style={{ padding: 8, background: '#d1fae5', borderRadius: 4 }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#065f46' }}>95%</div>
-            <div style={{ fontSize: '0.75rem', color: '#065f46' }}>Consent Coverage</div>
-          </div>
-          <div style={{ padding: 8, background: '#fef3c7', borderRadius: 4 }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#92400e' }}>87%</div>
-            <div style={{ fontSize: '0.75rem', color: '#92400e' }}>Vendor Compliance</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Business Value Command Center — FR-158 (FR-110.A2: role-gated) */}
-      {canViewWidget('business-value', userRoles) && <div style={styles.panel} data-testid="business-value">
-        <h3 style={styles.panelTitle}>Business Value Command Center</h3>
-        <div style={styles.threeColumnGrid}>
-          {/* Disbursal Blockers */}
-          <div>
-            <h4 style={styles.complianceSubtitle}>Disbursal Blockers</h4>
-            <div style={styles.trendTableContainer}>
-              <table style={styles.trendTable}>
-                <thead>
-                  <tr>
-                    <th style={styles.trendTh}>Category</th>
-                    <th style={styles.trendTh}>Count</th>
-                    <th style={styles.trendTh}>Avg Age (days)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {businessValueData.disbursalBlockers.map((b) => (
-                    <tr key={b.category}>
-                      <td style={styles.trendTd}>{b.category}</td>
-                      <td style={{ ...styles.trendTd, fontWeight: 600 }}>{b.count}</td>
-                      <td style={{ ...styles.trendTd, color: b.avgAgeDays > 5 ? '#dc2626' : b.avgAgeDays > 3 ? '#ca8a04' : '#16a34a' }}>
-                        {b.avgAgeDays}
-                      </td>
-                    </tr>
+      {/* Classification Accuracy Trend -- FR-110.A3 (FR-110.A2: role-gated) */}
+      {canViewWidget('accuracy-trend', userRoles) && (
+        <Card className="mb-6" data-testid="accuracy-trend">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base font-semibold">Classification Accuracy</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {accuracyTrendData.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No accuracy data available</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Week</TableHead>
+                    <TableHead>Accuracy</TableHead>
+                    <TableHead>Total Predictions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {accuracyTrendData.map((row) => (
+                    <TableRow key={row.week}>
+                      <TableCell>{row.week}</TableCell>
+                      <TableCell className={cn('font-semibold', complianceColor(row.accuracy))}>
+                        {row.accuracy}%
+                      </TableCell>
+                      <TableCell>{row.totalPredictions}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Vendor Capacity */}
-          <div>
-            <h4 style={styles.complianceSubtitle}>Vendor Capacity</h4>
-            <div style={styles.breakdownList}>
-              {businessValueData.vendorCapacity.map((v) => (
-                <div key={v.vendorId} style={styles.breakdownRow}>
-                  <span style={styles.breakdownLabel}>{v.vendorName}</span>
-                  <span style={{ ...styles.breakdownValue, color: v.utilizationPercent > 80 ? '#dc2626' : v.utilizationPercent > 60 ? '#ca8a04' : '#16a34a' }}>
-                    {v.utilizationPercent}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* Entity F1 Metrics -- FR-161 (FR-110.A2: role-gated) */}
+      {canViewWidget('entity-f1-metrics', userRoles) && (
+        <Card className="mb-6" data-testid="entity-f1-metrics">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Entity F1 Metrics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {Object.keys(entityF1Data).length === 0 ? (
+              <p className="text-sm text-muted-foreground">No entity F1 data available</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Entity Type</TableHead>
+                    <TableHead>Precision</TableHead>
+                    <TableHead>Recall</TableHead>
+                    <TableHead>F1</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.entries(entityF1Data).map(([entityType, m]) => (
+                    <TableRow key={entityType}>
+                      <TableCell>{entityType}</TableCell>
+                      <TableCell className={cn('font-semibold', metricColor(m.precision))}>
+                        {(m.precision * 100).toFixed(1)}%
+                      </TableCell>
+                      <TableCell className={cn('font-semibold', metricColor(m.recall))}>
+                        {(m.recall * 100).toFixed(1)}%
+                      </TableCell>
+                      <TableCell className={cn('font-semibold', metricColor(m.f1))}>
+                        {(m.f1 * 100).toFixed(1)}%
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-          {/* SLA Leakage by Region */}
-          <div>
-            <h4 style={styles.complianceSubtitle}>SLA Compliance by Region</h4>
-            <div style={styles.breakdownList}>
-              {Object.entries(businessValueData.slaLeakageByRegion).map(([region, compliance]) => (
-                <div key={region} style={styles.breakdownRow}>
-                  <span style={styles.breakdownLabel}>{region}</span>
-                  <span style={{ ...styles.breakdownValue, color: (compliance as number) >= 90 ? '#16a34a' : (compliance as number) >= 75 ? '#ca8a04' : '#dc2626' }}>
-                    {compliance as number}%
+      {/* Override Rate -- FR-161 (FR-110.A2: role-gated) */}
+      {canViewWidget('override-rate', userRoles) && (
+        <Card className="mb-6" data-testid="override-rate">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Override Rate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Override Rate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <span className={cn(
+                    'text-3xl font-bold',
+                    overrideRateData.rate > 10 ? 'text-red-600' : overrideRateData.rate > 5 ? 'text-yellow-600' : 'text-green-600'
+                  )}>
+                    {overrideRateData.rate}%
                   </span>
-                </div>
-              ))}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Overrides</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <span className="text-3xl font-bold text-blue-500">{overrideRateData.overrideCount}</span>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Predictions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <span className="text-3xl font-bold text-indigo-500">{overrideRateData.totalPredictions}</span>
+                </CardContent>
+              </Card>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Low-Confidence Volume -- FR-161 (FR-110.A2: role-gated) */}
+      {canViewWidget('low-confidence-volume', userRoles) && (
+        <Card className="mb-6" data-testid="low-confidence-volume">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Low-Confidence Volume</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {lowConfidenceData.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No low-confidence data available</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Week</TableHead>
+                    <TableHead>Count</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lowConfidenceData.map((row) => (
+                    <TableRow key={row.week}>
+                      <TableCell>{row.week}</TableCell>
+                      <TableCell className={cn(
+                        'font-semibold',
+                        row.count > 5 ? 'text-red-600' : row.count > 3 ? 'text-yellow-600' : 'text-green-600'
+                      )}>
+                        {row.count}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* At-Risk Predictions -- FR-062.A3 (FR-110.A2: role-gated) */}
+      {canViewWidget('at-risk-predictions', userRoles) && (
+        <Card className="mb-6" data-testid="at-risk-predictions">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base font-semibold">At-Risk Predictions</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {atRiskPredictions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No at-risk cases detected</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Case ID</TableHead>
+                    <TableHead>Breach Probability</TableHead>
+                    <TableHead>Risk Factors</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {atRiskPredictions.map((pred) => (
+                    <TableRow key={pred.caseId}>
+                      <TableCell>{pred.caseId}</TableCell>
+                      <TableCell className={cn(
+                        'font-semibold',
+                        pred.pBreach >= 0.8 ? 'text-red-600' : pred.pBreach >= 0.6 ? 'text-yellow-600' : 'text-amber-500'
+                      )}>
+                        {Math.round(pred.pBreach * 100)}%
+                      </TableCell>
+                      <TableCell>{pred.riskFactors.join(', ')}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Workload Forecast -- FR-112.A3 (FR-110.A2: role-gated) */}
+      {canViewWidget('workload-forecast', userRoles) && (
+        <Card className="mb-6" data-testid="workload-forecast">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold">Workload Forecast</CardTitle>
+              {forecastData && (
+                <span
+                  data-testid="forecast-trend"
+                  className={cn(
+                    'flex items-center gap-1 text-sm font-semibold',
+                    forecastData.trend === 'INCREASING' ? 'text-red-600'
+                      : forecastData.trend === 'DECREASING' ? 'text-green-600'
+                      : 'text-muted-foreground'
+                  )}
+                >
+                  {forecastData.trend === 'INCREASING' && <TrendingUp className="h-4 w-4" />}
+                  {forecastData.trend === 'DECREASING' && <TrendingDown className="h-4 w-4" />}
+                  {forecastData.trend === 'STABLE' && <Minus className="h-4 w-4" />}
+                  {forecastData.trend === 'INCREASING' ? 'Trend Up' : forecastData.trend === 'DECREASING' ? 'Trend Down' : 'Trend Stable'} (Current: {forecastData.currentLoad})
+                </span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!forecastData || forecastData.points.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No forecast data available</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Predicted Volume</TableHead>
+                    <TableHead>Confidence (Low-High)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {forecastData.points.map((pt) => (
+                    <TableRow key={pt.date}>
+                      <TableCell>{pt.date}</TableCell>
+                      <TableCell>{pt.predictedVolume}</TableCell>
+                      <TableCell>
+                        {pt.confidenceInterval.low} - {pt.confidenceInterval.high}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Compliance Summary Widget -- FR-164 */}
+      <Card className="mb-6" data-testid="compliance-widget">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-base font-semibold">Compliance Status</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded bg-emerald-100 p-2">
+              <div className="text-xl font-bold text-emerald-800">98%</div>
+              <div className="text-xs text-emerald-800">GDPR Compliance</div>
+            </div>
+            <div className="rounded bg-blue-100 p-2">
+              <div className="text-xl font-bold text-blue-800">100%</div>
+              <div className="text-xs text-blue-800">Data Retention</div>
+            </div>
+            <div className="rounded bg-emerald-100 p-2">
+              <div className="text-xl font-bold text-emerald-800">95%</div>
+              <div className="text-xs text-emerald-800">Consent Coverage</div>
+            </div>
+            <div className="rounded bg-amber-100 p-2">
+              <div className="text-xl font-bold text-amber-800">87%</div>
+              <div className="text-xs text-amber-800">Vendor Compliance</div>
             </div>
           </div>
-        </div>
-      </div>}
+        </CardContent>
+      </Card>
+
+      {/* Business Value Command Center -- FR-158 (FR-110.A2: role-gated) */}
+      {canViewWidget('business-value', userRoles) && (
+        <Card className="mb-6" data-testid="business-value">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Business Value Command Center</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-6">
+              {/* Disbursal Blockers */}
+              <div>
+                <h4 className="mb-3 text-sm font-semibold text-slate-600">Disbursal Blockers</h4>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Count</TableHead>
+                      <TableHead>Avg Age (days)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {businessValueData.disbursalBlockers.map((b) => (
+                      <TableRow key={b.category}>
+                        <TableCell>{b.category}</TableCell>
+                        <TableCell className="font-semibold">{b.count}</TableCell>
+                        <TableCell className={cn(
+                          b.avgAgeDays > 5 ? 'text-red-600' : b.avgAgeDays > 3 ? 'text-yellow-600' : 'text-green-600'
+                        )}>
+                          {b.avgAgeDays}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Vendor Capacity */}
+              <div>
+                <h4 className="mb-3 text-sm font-semibold text-slate-600">Vendor Capacity</h4>
+                <div className="flex flex-col gap-2">
+                  {businessValueData.vendorCapacity.map((v) => (
+                    <div key={v.vendorId} className="flex items-center justify-between border-b py-1.5">
+                      <span className="text-sm">{v.vendorName}</span>
+                      <span className={cn(
+                        'text-sm font-semibold',
+                        v.utilizationPercent > 80 ? 'text-red-600' : v.utilizationPercent > 60 ? 'text-yellow-600' : 'text-green-600'
+                      )}>
+                        {v.utilizationPercent}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* SLA Leakage by Region */}
+              <div>
+                <h4 className="mb-3 text-sm font-semibold text-slate-600">SLA Compliance by Region</h4>
+                <div className="flex flex-col gap-2">
+                  {Object.entries(businessValueData.slaLeakageByRegion).map(([region, compliance]) => (
+                    <div key={region} className="flex items-center justify-between border-b py-1.5">
+                      <span className="text-sm">{region}</span>
+                      <span className={cn(
+                        'text-sm font-semibold',
+                        complianceColor(compliance as number)
+                      )}>
+                        {compliance as number}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
-};
-
-const styles: Record<string, CSSProperties> = {
-  container: {
-    padding: '0',
-  },
-  heading: {
-    margin: '0 0 1.5rem 0',
-    fontSize: '1.5rem',
-    fontWeight: 700,
-  },
-  cardsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '1rem',
-    marginBottom: '1.5rem',
-  },
-  card: {
-    backgroundColor: 'var(--color-surface)',
-    border: '1px solid var(--color-border)',
-    borderRadius: '8px',
-    padding: '1.25rem',
-  },
-  cardTitle: {
-    fontSize: '0.8rem',
-    textTransform: 'uppercase',
-    opacity: 0.7,
-    margin: '0 0 0.5rem 0',
-  },
-  cardValue: {
-    fontSize: '2rem',
-    fontWeight: 700,
-  },
-  twoColumnGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1.5rem',
-    marginBottom: '1.5rem',
-  },
-  threeColumnGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '1.5rem',
-    marginBottom: '1.5rem',
-  },
-  panel: {
-    backgroundColor: 'var(--color-surface)',
-    border: '1px solid var(--color-border)',
-    borderRadius: '8px',
-    padding: '1.25rem',
-    marginBottom: '1.5rem',
-  },
-  panelTitle: {
-    fontSize: '1rem',
-    fontWeight: 600,
-    margin: '0 0 1rem 0',
-  },
-  chartPlaceholder: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.75rem',
-  },
-  chartBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-  },
-  chartLabel: {
-    fontSize: '0.8rem',
-    width: '100px',
-    flexShrink: 0,
-  },
-  chartFill: {
-    height: '20px',
-    borderRadius: '4px',
-    transition: 'width 0.3s ease',
-  },
-  chartCount: {
-    fontSize: '0.8rem',
-    fontWeight: 600,
-    minWidth: '30px',
-  },
-  activityList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.75rem',
-  },
-  activityItem: {
-    padding: '0.75rem',
-    borderBottom: '1px solid var(--color-border)',
-  },
-  activityMeta: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: '0.25rem',
-  },
-  activityUser: {
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    color: 'var(--color-accent)',
-  },
-  activityTime: {
-    fontSize: '0.7rem',
-    color: '#94a3b8',
-  },
-  activityDesc: {
-    fontSize: '0.85rem',
-    margin: 0,
-    lineHeight: 1.4,
-  },
-  placeholder: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '4rem 2rem',
-    border: '1px dashed var(--color-border)',
-    borderRadius: '8px',
-    backgroundColor: 'var(--color-surface)',
-    textAlign: 'center',
-  },
-  placeholderIcon: {
-    fontSize: '2.5rem',
-    marginBottom: '0.75rem',
-    opacity: 0.5,
-  },
-  placeholderTitle: {
-    margin: '0 0 0.5rem 0',
-    fontSize: '1.1rem',
-    fontWeight: 600,
-    color: '#475569',
-  },
-  placeholderText: {
-    margin: 0,
-    fontSize: '0.875rem',
-    color: '#94a3b8',
-    maxWidth: '480px',
-    lineHeight: 1.5,
-  },
-  code: {
-    backgroundColor: '#f1f5f9',
-    padding: '0.15rem 0.4rem',
-    borderRadius: '4px',
-    fontSize: '0.8rem',
-    fontFamily: 'monospace',
-  },
-  spinner: {
-    width: '32px',
-    height: '32px',
-    border: '3px solid var(--color-border)',
-    borderTop: '3px solid var(--color-accent, #3b82f6)',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
-    marginBottom: '1rem',
-  },
-  retryButton: {
-    marginTop: '1rem',
-    padding: '0.5rem 1.25rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '6px',
-    backgroundColor: 'var(--color-bg)',
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-    fontWeight: 500,
-  },
-  breakdownList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem',
-  },
-  breakdownRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '0.4rem 0',
-    borderBottom: '1px solid var(--color-border)',
-  },
-  breakdownLabel: {
-    fontSize: '0.85rem',
-    color: 'var(--color-text)',
-  },
-  breakdownValue: {
-    fontSize: '0.85rem',
-    fontWeight: 600,
-  },
-  complianceGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '1.5rem',
-  },
-  complianceSubtitle: {
-    fontSize: '0.85rem',
-    fontWeight: 600,
-    margin: '0 0 0.75rem 0',
-    color: '#475569',
-  },
-  trendTableContainer: {
-    overflowX: 'auto',
-  },
-  trendTable: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    fontSize: '0.85rem',
-  },
-  trendTh: {
-    textAlign: 'left',
-    padding: '0.5rem 0.75rem',
-    borderBottom: '2px solid var(--color-border)',
-    fontSize: '0.8rem',
-    fontWeight: 600,
-    color: '#475569',
-  },
-  trendTd: {
-    padding: '0.4rem 0.75rem',
-    borderBottom: '1px solid var(--color-border)',
-  },
 };
 
 export default DashboardPage;

@@ -1,4 +1,15 @@
 import { useState } from 'react';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 
 interface PendingChange {
   id: string;
@@ -12,6 +23,7 @@ interface PendingChange {
 }
 
 interface ApproverInboxProps {
+  open: boolean;
   onClose: () => void;
 }
 
@@ -48,7 +60,13 @@ const MOCK_PENDING: PendingChange[] = [
   },
 ];
 
-export function ApproverInbox({ onClose }: ApproverInboxProps) {
+const ACTION_BADGE_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  CREATE: 'default',
+  UPDATE: 'secondary',
+  DELETE: 'destructive',
+};
+
+export function ApproverInbox({ open, onClose }: ApproverInboxProps) {
   const [changes, setChanges] = useState(MOCK_PENDING);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -71,85 +89,105 @@ export function ApproverInbox({ onClose }: ApproverInboxProps) {
   const pending = changes.filter((c) => c.status === 'PENDING');
 
   return (
-    <div className="drawer-overlay" onClick={onClose}>
-      <div className="drawer drawer-wide" onClick={(e) => e.stopPropagation()}>
-        <div className="drawer-header">
-          <h3>Approver Inbox</h3>
-          <span className="drawer-subtitle">{pending.length} pending changes</span>
-          <button className="drawer-close" onClick={onClose}>X</button>
-        </div>
+    <Sheet open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Approver Inbox</SheetTitle>
+          <SheetDescription>{pending.length} pending changes</SheetDescription>
+        </SheetHeader>
 
-        <div className="drawer-body">
-          {pending.length === 0 && <p className="empty-state">No pending changes.</p>}
+        <div className="space-y-4 py-6">
+          {pending.length === 0 && (
+            <p className="text-center text-sm text-muted-foreground py-8">
+              No pending changes.
+            </p>
+          )}
 
           {pending.map((change) => (
-            <div key={change.id} className="change-card">
-              <div className="change-header">
-                <span className={`badge badge-${change.action.toLowerCase()}`}>
-                  {change.action}
-                </span>
-                <span className="change-master">{change.masterTable.replace(/_/g, ' ')}</span>
-                <span className="change-meta">
-                  by {change.proposedBy} on {new Date(change.proposedAt).toLocaleDateString()}
-                </span>
-              </div>
-
-              <div className="change-diff">
-                {change.before && (
-                  <div className="diff-section">
-                    <h5>Before</h5>
-                    <pre>{JSON.stringify(change.before, null, 2)}</pre>
-                  </div>
-                )}
-                <div className="diff-section">
-                  <h5>{change.before ? 'After' : 'New Record'}</h5>
-                  <pre>{JSON.stringify(change.after, null, 2)}</pre>
+            <Card key={change.id}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Badge variant={ACTION_BADGE_VARIANT[change.action]}>
+                    {change.action}
+                  </Badge>
+                  <span className="font-medium capitalize">
+                    {change.masterTable.replace(/_/g, ' ')}
+                  </span>
+                  <span className="text-sm text-muted-foreground ml-auto">
+                    by {change.proposedBy} on {new Date(change.proposedAt).toLocaleDateString()}
+                  </span>
                 </div>
-              </div>
+              </CardHeader>
 
-              <div className="change-actions">
+              <CardContent className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {change.before && (
+                    <div className="rounded-md bg-muted p-3">
+                      <h5 className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+                        Before
+                      </h5>
+                      <pre className="whitespace-pre-wrap text-xs">
+                        {JSON.stringify(change.before, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                  <div className="rounded-md bg-muted p-3">
+                    <h5 className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+                      {change.before ? 'After' : 'New Record'}
+                    </h5>
+                    <pre className="whitespace-pre-wrap text-xs">
+                      {JSON.stringify(change.after, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              </CardContent>
+
+              <CardFooter className="gap-2">
                 {rejectingId === change.id ? (
-                  <div className="reject-form">
-                    <input
-                      type="text"
+                  <div className="flex w-full items-center gap-2">
+                    <Input
                       placeholder="Reason for rejection..."
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
+                      className="flex-1"
                     />
-                    <button
-                      className="btn-danger btn-sm"
+                    <Button
+                      variant="destructive"
+                      size="sm"
                       onClick={() => handleReject(change.id)}
                     >
                       Confirm Reject
-                    </button>
-                    <button
-                      className="btn-ghost btn-sm"
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setRejectingId(null)}
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 ) : (
                   <>
-                    <button
-                      className="btn-primary btn-sm"
+                    <Button
+                      size="sm"
                       onClick={() => handleApprove(change.id)}
                     >
                       Approve
-                    </button>
-                    <button
-                      className="btn-secondary btn-sm"
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => setRejectingId(change.id)}
                     >
                       Reject
-                    </button>
+                    </Button>
                   </>
                 )}
-              </div>
-            </div>
+              </CardFooter>
+            </Card>
           ))}
         </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

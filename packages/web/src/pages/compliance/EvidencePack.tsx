@@ -4,11 +4,22 @@ import {
   useGenerateEvidencePack,
   type EvidencePackFilters,
 } from '../../hooks/useEvidencePack';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
 
-const statusColor: Record<string, string> = {
-  GENERATING: '#f59e0b',
-  READY: '#10b981',
-  FAILED: '#ef4444',
+const statusVariant: Record<string, 'default' | 'secondary' | 'destructive'> = {
+  GENERATING: 'secondary',
+  READY: 'default',
+  FAILED: 'destructive',
 };
 
 export function EvidencePack() {
@@ -41,179 +52,144 @@ export function EvidencePack() {
   };
 
   return (
-    <div style={{ padding: '1.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h2 style={{ margin: 0 }}>Evidence Packs</h2>
-        <button
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="m-0 text-xl font-bold">Evidence Packs</h2>
+        <Button
           onClick={() => setShowForm(!showForm)}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: '#2563eb',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
         >
           {showForm ? 'Cancel' : 'Generate New Pack'}
-        </button>
+        </Button>
       </div>
 
       {/* Generation form */}
       {showForm && (
-        <div style={{
-          padding: '1rem',
-          backgroundColor: '#f8fafc',
-          borderRadius: '8px',
-          border: '1px solid #e2e8f0',
-          marginBottom: '1.5rem',
-          display: 'flex',
-          gap: '1rem',
-          flexWrap: 'wrap',
-          alignItems: 'flex-end',
-        }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#475569' }}>
+        <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 mb-6 flex gap-4 flex-wrap items-end">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600">
               Pack Name
             </label>
-            <input
+            <Input
               type="text"
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
               placeholder="Q1 2026 Compliance"
-              style={inputStyle}
+              className="min-w-[140px]"
             />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#475569' }}>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600">
               From Date
             </label>
-            <input
+            <Input
               type="date"
               value={formFrom}
               onChange={(e) => setFormFrom(e.target.value)}
-              style={inputStyle}
+              className="min-w-[140px]"
             />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#475569' }}>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600">
               To Date
             </label>
-            <input
+            <Input
               type="date"
               value={formTo}
               onChange={(e) => setFormTo(e.target.value)}
-              style={inputStyle}
+              className="min-w-[140px]"
             />
           </div>
-          <button
+          <Button
             onClick={handleGenerate}
             disabled={generatePack.isPending || !formName || !formFrom || !formTo}
-            style={{
-              padding: '0.5rem 1.5rem',
-              backgroundColor: '#10b981',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 600,
-            }}
+            className="bg-emerald-500 hover:bg-emerald-600"
           >
             {generatePack.isPending ? 'Generating...' : 'Generate'}
-          </button>
+          </Button>
         </div>
       )}
 
       {isLoading && <p>Loading evidence packs...</p>}
       {error && (
-        <p style={{ color: '#dc2626' }}>
+        <p className="text-red-600">
           Error: {error instanceof Error ? error.message : 'Unknown error'}
         </p>
       )}
 
       {data && (
         <>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Name</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Period</th>
-                  <th style={thStyle}>Log Count</th>
-                  <th style={thStyle}>Generated By</th>
-                  <th style={thStyle}>Created</th>
-                  <th style={thStyle}>Download</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.data.map((pack) => (
-                  <tr key={pack.id}>
-                    <td style={{ ...tdStyle, fontWeight: 500 }}>{pack.name}</td>
-                    <td style={tdStyle}>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          padding: '0.125rem 0.5rem',
-                          borderRadius: '999px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          color: '#fff',
-                          backgroundColor: statusColor[pack.status] ?? '#94a3b8',
-                        }}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="whitespace-nowrap">Name</TableHead>
+                <TableHead className="whitespace-nowrap">Status</TableHead>
+                <TableHead className="whitespace-nowrap">Period</TableHead>
+                <TableHead className="whitespace-nowrap">Log Count</TableHead>
+                <TableHead className="whitespace-nowrap">Generated By</TableHead>
+                <TableHead className="whitespace-nowrap">Created</TableHead>
+                <TableHead className="whitespace-nowrap">Download</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.data.map((pack) => (
+                <TableRow key={pack.id}>
+                  <TableCell className="font-medium">{pack.name}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={statusVariant[pack.status] ?? 'secondary'}
+                    >
+                      {pack.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {new Date(pack.fromDate).toLocaleDateString()} -{' '}
+                    {new Date(pack.toDate).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>{pack.auditLogCount}</TableCell>
+                  <TableCell>{pack.generatedBy}</TableCell>
+                  <TableCell>
+                    {new Date(pack.createdAt).toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    {pack.downloadUrl ? (
+                      <a
+                        href={pack.downloadUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline"
                       >
-                        {pack.status}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>
-                      {new Date(pack.fromDate).toLocaleDateString()} -{' '}
-                      {new Date(pack.toDate).toLocaleDateString()}
-                    </td>
-                    <td style={tdStyle}>{pack.auditLogCount}</td>
-                    <td style={tdStyle}>{pack.generatedBy}</td>
-                    <td style={tdStyle}>
-                      {new Date(pack.createdAt).toLocaleString()}
-                    </td>
-                    <td style={tdStyle}>
-                      {pack.downloadUrl ? (
-                        <a
-                          href={pack.downloadUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: '#2563eb', textDecoration: 'underline' }}
-                        >
-                          Download
-                        </a>
-                      ) : (
-                        <span style={{ color: '#94a3b8' }}>-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        Download
+                      </a>
+                    ) : (
+                      <span className="text-slate-400">-</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-            <button
+          <div className="flex gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
               disabled={filters.page === 1}
               onClick={() =>
                 setFilters((prev) => ({ ...prev, page: (prev.page ?? 1) - 1 }))
               }
-              style={btnStyle}
             >
               Previous
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               disabled={data.data.length < (filters.limit ?? 20)}
               onClick={() =>
                 setFilters((prev) => ({ ...prev, page: (prev.page ?? 1) + 1 }))
               }
-              style={btnStyle}
             >
               Next
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -222,41 +198,3 @@ export function EvidencePack() {
 }
 
 export default EvidencePack;
-
-const inputStyle: React.CSSProperties = {
-  padding: '0.5rem 0.75rem',
-  border: '1px solid #ddd',
-  borderRadius: '4px',
-  fontSize: '0.875rem',
-  minWidth: '140px',
-};
-
-const tableStyle: React.CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  fontSize: '0.875rem',
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '0.625rem 0.75rem',
-  borderBottom: '2px solid #e2e8f0',
-  fontWeight: 600,
-  color: '#475569',
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '0.5rem 0.75rem',
-  borderBottom: '1px solid #f1f5f9',
-  color: '#334155',
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: '0.5rem 1rem',
-  border: '1px solid #ddd',
-  borderRadius: '4px',
-  backgroundColor: '#fff',
-  cursor: 'pointer',
-  fontSize: '0.85rem',
-};

@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
 import { apiGet } from '../../api/client';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface DsrRequest {
   id: string;
@@ -15,9 +20,14 @@ const MOCK_DSR_REQUESTS: DsrRequest[] = [
   { id: 'dsr-3', type: 'RECTIFICATION', status: 'COMPLETED', requestedAt: '2026-04-25T08:00:00Z', subject: 'Bob Wilson' },
 ];
 
+const statusBadgeClass: Record<string, string> = {
+  PENDING: 'bg-amber-500 text-white hover:bg-amber-500/80',
+  IN_PROGRESS: 'bg-blue-500 text-white hover:bg-blue-500/80',
+  COMPLETED: 'bg-emerald-500 text-white hover:bg-emerald-500/80',
+};
+
 export default function DpoConsole() {
   const [dsrRequests, setDsrRequests] = useState<DsrRequest[]>(MOCK_DSR_REQUESTS);
-  const [activeTab, setActiveTab] = useState<'dsr' | 'consent' | 'evidence'>('dsr');
 
   useEffect(() => {
     apiGet<{ data: DsrRequest[] }>('/compliance/dsr/requests')
@@ -25,105 +35,70 @@ export default function DpoConsole() {
       .catch(() => setDsrRequests(MOCK_DSR_REQUESTS));
   }, []);
 
-  const tabs = [
-    { id: 'dsr' as const, label: 'DSR Requests' },
-    { id: 'consent' as const, label: 'Consent Management' },
-    { id: 'evidence' as const, label: 'Evidence Generation' },
-  ];
-
-  const statusColors: Record<string, string> = {
-    PENDING: '#f59e0b',
-    IN_PROGRESS: '#3b82f6',
-    COMPLETED: '#10b981',
-  };
-
   return (
-    <div style={{ padding: 24 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 24 }}>DPO Console</h1>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">DPO Console</h1>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            data-testid={`tab-${tab.id}`}
-            style={{
-              padding: '8px 16px',
-              borderRadius: 6,
-              border: '1px solid #e5e7eb',
-              backgroundColor: activeTab === tab.id ? '#3b82f6' : '#fff',
-              color: activeTab === tab.id ? '#fff' : '#374151',
-              cursor: 'pointer',
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs defaultValue="dsr">
+        <TabsList className="mb-6">
+          <TabsTrigger value="dsr" data-testid="tab-dsr">
+            DSR Requests
+          </TabsTrigger>
+          <TabsTrigger value="consent" data-testid="tab-consent">
+            Consent Management
+          </TabsTrigger>
+          <TabsTrigger value="evidence" data-testid="tab-evidence">
+            Evidence Generation
+          </TabsTrigger>
+        </TabsList>
 
-      {activeTab === 'dsr' && (
-        <div data-testid="dsr-panel">
-          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Data Subject Requests</h2>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
-                <th style={{ textAlign: 'left', padding: 8 }}>ID</th>
-                <th style={{ textAlign: 'left', padding: 8 }}>Type</th>
-                <th style={{ textAlign: 'left', padding: 8 }}>Subject</th>
-                <th style={{ textAlign: 'left', padding: 8 }}>Status</th>
-                <th style={{ textAlign: 'left', padding: 8 }}>Requested At</th>
-              </tr>
-            </thead>
-            <tbody>
+        <TabsContent value="dsr" data-testid="dsr-panel">
+          <h2 className="text-lg font-semibold mb-4">Data Subject Requests</h2>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Subject</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Requested At</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {dsrRequests.map(req => (
-                <tr key={req.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: 8 }}>{req.id}</td>
-                  <td style={{ padding: 8 }}>{req.type}</td>
-                  <td style={{ padding: 8 }}>{req.subject}</td>
-                  <td style={{ padding: 8 }}>
-                    <span style={{
-                      padding: '2px 8px',
-                      borderRadius: 12,
-                      fontSize: 12,
-                      backgroundColor: statusColors[req.status] || '#6b7280',
-                      color: '#fff',
-                    }}>
+                <TableRow key={req.id}>
+                  <TableCell>{req.id}</TableCell>
+                  <TableCell>{req.type}</TableCell>
+                  <TableCell>{req.subject}</TableCell>
+                  <TableCell>
+                    <Badge
+                      className={cn(
+                        'border-transparent',
+                        statusBadgeClass[req.status] || 'bg-gray-500 text-white hover:bg-gray-500/80',
+                      )}
+                    >
                       {req.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: 8 }}>{new Date(req.requestedAt).toLocaleDateString()}</td>
-                </tr>
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{new Date(req.requestedAt).toLocaleDateString()}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </TableBody>
+          </Table>
+        </TabsContent>
 
-      {activeTab === 'consent' && (
-        <div data-testid="consent-panel">
-          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Consent Management</h2>
-          <p style={{ color: '#6b7280' }}>Consent ledger integration — view and manage data processing consents.</p>
-        </div>
-      )}
+        <TabsContent value="consent" data-testid="consent-panel">
+          <h2 className="text-lg font-semibold mb-4">Consent Management</h2>
+          <p className="text-muted-foreground">Consent ledger integration — view and manage data processing consents.</p>
+        </TabsContent>
 
-      {activeTab === 'evidence' && (
-        <div data-testid="evidence-panel">
-          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Evidence Generation</h2>
-          <button
-            onClick={() => alert('Evidence generation triggered')}
-            style={{
-              padding: '8px 16px',
-              borderRadius: 6,
-              backgroundColor: '#3b82f6',
-              color: '#fff',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
+        <TabsContent value="evidence" data-testid="evidence-panel">
+          <h2 className="text-lg font-semibold mb-4">Evidence Generation</h2>
+          <Button onClick={() => alert('Evidence generation triggered')}>
             Generate Regulatory Evidence Pack
-          </button>
-        </div>
-      )}
+          </Button>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import type { CSSProperties } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 export type ConfidenceBand = 'GREEN' | 'AMBER' | 'RED' | 'RED_MANUAL';
 
@@ -6,72 +7,46 @@ interface ConfidenceBadgeProps {
   band: ConfidenceBand;
 }
 
-/**
- * Unicode icons per band for accessibility (FR-015 A6).
- * Icons ensure the badge conveys meaning without relying on color alone.
- */
-const BAND_CONFIG: Record<
-  ConfidenceBand,
-  { icon: string; bg: string; text: string; label: string }
-> = {
+const BAND_CONFIG: Record<ConfidenceBand, { icon: string; className: string; label: string }> = {
   GREEN: {
-    icon: '\u2714', // checkmark
-    bg: '#dcfce7',
-    text: '#166534',
+    icon: '\u2714',
+    className: 'bg-green-100 text-green-800 hover:bg-green-100',
     label: 'high',
   },
   AMBER: {
-    icon: '\u26A0', // warning
-    bg: '#fef3c7',
-    text: '#92400e',
+    icon: '\u26A0',
+    className: 'bg-amber-100 text-amber-800 hover:bg-amber-100',
     label: 'medium',
   },
   RED: {
-    icon: '\u26A0', // alert (triangle)
-    bg: '#fee2e2',
-    text: '#991b1b',
+    icon: '\u26A0',
+    className: 'bg-red-100 text-red-800 hover:bg-red-100',
     label: 'low',
   },
   RED_MANUAL: {
-    icon: '\u26D4', // stop
-    bg: '#7f1d1d',
-    text: '#fecaca',
+    icon: '\u26D4',
+    className: 'bg-red-900 text-red-200 hover:bg-red-900',
     label: 'manual review',
   },
 };
 
 /**
  * ConfidenceBadge — renders a colored chip with an icon AND color.
- *
  * BRD accessibility requirement (Section 1.5): never rely on color alone.
- * Each band includes a distinct Unicode icon alongside the label.
  */
 export function ConfidenceBadge({ band }: ConfidenceBadgeProps) {
   const config = BAND_CONFIG[band] ?? BAND_CONFIG.RED;
 
-  const style: CSSProperties = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.3rem',
-    padding: '0.25rem 0.625rem',
-    borderRadius: '9999px',
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    backgroundColor: config.bg,
-    color: config.text,
-    letterSpacing: '0.025em',
-    whiteSpace: 'nowrap',
-  };
-
   return (
-    <span
-      style={style}
+    <Badge
+      variant="secondary"
+      className={cn('gap-1 font-semibold tracking-wide whitespace-nowrap', config.className)}
       aria-label={`Confidence: ${band}`}
       role="status"
       tabIndex={0}
     >
       <span aria-hidden="true">{config.icon}</span>
       {band}
-    </span>
+    </Badge>
   );
 }

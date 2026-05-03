@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import { useConsent, type ConsentFilters } from '../../hooks/useConsent';
+import { Input } from '@/components/ui/input';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 export function ConsentLedger() {
   const [filters, setFilters] = useState<ConsentFilters>({ page: 1, limit: 20 });
@@ -14,113 +18,109 @@ export function ConsentLedger() {
   };
 
   return (
-    <div style={{ padding: '1.5rem' }}>
-      <h2 style={{ margin: '0 0 1.5rem 0' }}>Consent Ledger</h2>
+    <div className="p-6">
+      <h2 className="mb-6">Consent Ledger</h2>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <input
+      <div className="flex gap-4 mb-6 flex-wrap">
+        <Input
           type="text"
           placeholder="Subject ID"
           value={filters.subjectId ?? ''}
           onChange={(e) => handleFilterChange('subjectId', e.target.value)}
-          style={inputStyle}
+          className="min-w-[140px] w-auto"
         />
-        <input
+        <Input
           type="text"
           placeholder="Purpose"
           value={filters.purpose ?? ''}
           onChange={(e) => handleFilterChange('purpose', e.target.value)}
-          style={inputStyle}
+          className="min-w-[140px] w-auto"
         />
       </div>
 
       {isLoading && <p>Loading consent records...</p>}
       {error && (
-        <p style={{ color: '#dc2626' }}>
+        <p className="text-destructive">
           Error: {error instanceof Error ? error.message : 'Unknown error'}
         </p>
       )}
 
       {data && (
         <>
-          <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+          <p className="text-sm text-muted-foreground mb-3">
             {data.total} consent record(s)
           </p>
 
-          <div style={{ overflowX: 'auto' }}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Subject</th>
-                  <th style={thStyle}>Purpose</th>
-                  <th style={thStyle}>Consent</th>
-                  <th style={thStyle}>Consent Date</th>
-                  <th style={thStyle}>Expiry</th>
-                  <th style={thStyle}>Source</th>
-                  <th style={thStyle}>Version</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.data.map((record) => (
-                  <tr key={record.id}>
-                    <td style={tdStyle}>
-                      <div style={{ fontWeight: 500 }}>{record.subjectId}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                        {record.subjectEmail}
-                      </div>
-                    </td>
-                    <td style={tdStyle}>{record.purpose}</td>
-                    <td style={tdStyle}>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          padding: '0.125rem 0.5rem',
-                          borderRadius: '999px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          color: '#fff',
-                          backgroundColor: record.consentGiven ? '#10b981' : '#ef4444',
-                        }}
-                      >
-                        {record.consentGiven ? 'GRANTED' : 'WITHDRAWN'}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>
-                      {new Date(record.consentDate).toLocaleDateString()}
-                    </td>
-                    <td style={tdStyle}>
-                      {record.expiryDate
-                        ? new Date(record.expiryDate).toLocaleDateString()
-                        : 'No expiry'}
-                    </td>
-                    <td style={tdStyle}>{record.source}</td>
-                    <td style={tdStyle}>{record.version}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Subject</TableHead>
+                <TableHead>Purpose</TableHead>
+                <TableHead>Consent</TableHead>
+                <TableHead>Consent Date</TableHead>
+                <TableHead>Expiry</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Version</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.data.map((record) => (
+                <TableRow key={record.id}>
+                  <TableCell>
+                    <div className="font-medium">{record.subjectId}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {record.subjectEmail}
+                    </div>
+                  </TableCell>
+                  <TableCell>{record.purpose}</TableCell>
+                  <TableCell>
+                    <Badge
+                      className={
+                        record.consentGiven
+                          ? 'border-transparent bg-emerald-500 text-white hover:bg-emerald-500/80'
+                          : 'border-transparent bg-red-500 text-white hover:bg-red-500/80'
+                      }
+                    >
+                      {record.consentGiven ? 'GRANTED' : 'WITHDRAWN'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {new Date(record.consentDate).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    {record.expiryDate
+                      ? new Date(record.expiryDate).toLocaleDateString()
+                      : 'No expiry'}
+                  </TableCell>
+                  <TableCell>{record.source}</TableCell>
+                  <TableCell>{record.version}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-            <button
+          <div className="flex gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
               disabled={filters.page === 1}
               onClick={() =>
                 setFilters((prev) => ({ ...prev, page: (prev.page ?? 1) - 1 }))
               }
-              style={btnStyle}
             >
               Previous
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               disabled={data.data.length < (filters.limit ?? 20)}
               onClick={() =>
                 setFilters((prev) => ({ ...prev, page: (prev.page ?? 1) + 1 }))
               }
-              style={btnStyle}
             >
               Next
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -129,41 +129,3 @@ export function ConsentLedger() {
 }
 
 export default ConsentLedger;
-
-const inputStyle: React.CSSProperties = {
-  padding: '0.5rem 0.75rem',
-  border: '1px solid #ddd',
-  borderRadius: '4px',
-  fontSize: '0.875rem',
-  minWidth: '140px',
-};
-
-const tableStyle: React.CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  fontSize: '0.875rem',
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '0.625rem 0.75rem',
-  borderBottom: '2px solid #e2e8f0',
-  fontWeight: 600,
-  color: '#475569',
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '0.5rem 0.75rem',
-  borderBottom: '1px solid #f1f5f9',
-  color: '#334155',
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: '0.5rem 1rem',
-  border: '1px solid #ddd',
-  borderRadius: '4px',
-  backgroundColor: '#fff',
-  cursor: 'pointer',
-  fontSize: '0.85rem',
-};

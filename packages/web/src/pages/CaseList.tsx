@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect, type CSSProperties } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CaseStatusBadge, type CaseStatus } from '../components/CaseStatusBadge';
 import { PriorityIndicator, type Priority } from '../components/PriorityIndicator';
@@ -10,6 +10,38 @@ import { useHotkeys } from '../hooks/useHotkeys';
 import { useDebounce } from '../hooks/useDebounce';
 import { useAuth } from '../auth';
 import { LlmModeBanner } from '../components/LlmModeBanner';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
+import {
+  Search,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
+  Save,
+  RefreshCw,
+  AlertCircle,
+  Inbox,
+} from 'lucide-react';
 
 /** Saved filter view stored in localStorage */
 interface SavedView {
@@ -103,6 +135,12 @@ function getTatColor(tatDue: string, created: string): string {
   return '#dc2626'; // red
 }
 
+const tatColorBorderClass: Record<string, string> = {
+  '#16a34a': 'border-l-[3px] border-l-green-600',
+  '#d97706': 'border-l-[3px] border-l-amber-500',
+  '#dc2626': 'border-l-[3px] border-l-red-600',
+};
+
 /** A single sort field entry for multi-sort support (FR-050.A4). */
 interface SortFieldEntry {
   field: SortField;
@@ -170,6 +208,10 @@ function compareCasesCriticality(a: CaseRow, b: CaseRow): number {
   const tatB = new Date(b.tatDue).getTime();
   return tatA - tatB;
 }
+
+/** Helper: convert empty string to sentinel "__all__" for Radix Select, and vice versa */
+const toSelectValue = (v: string) => v || '__all__';
+const fromSelectValue = (v: string) => (v === '__all__' ? '' : v);
 
 const CaseListPage = () => {
   const navigate = useNavigate();
@@ -516,11 +558,13 @@ const CaseListPage = () => {
   if (!demo && isLoading) {
     return (
       <div>
-        <h2 style={styles.heading}>Cases</h2>
-        <div style={styles.placeholder}>
-          <div style={styles.spinner} />
-          <p style={styles.placeholderText}>Loading cases...</p>
-        </div>
+        <h2 className="mb-4 text-2xl font-bold">Cases</h2>
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <Loader2 className="mb-4 h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading cases...</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -529,21 +573,25 @@ const CaseListPage = () => {
   if (!demo && isError) {
     return (
       <div>
-        <h2 style={styles.heading}>Cases</h2>
-        <div style={{ ...styles.placeholder, borderColor: '#fecaca' }}>
-          <h3 style={{ ...styles.placeholderTitle, color: '#dc2626' }}>
-            Failed to load cases
-          </h3>
-          <p style={styles.placeholderText}>
-            {error instanceof Error ? error.message : 'An unexpected error occurred.'}
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            style={styles.retryButton}
-          >
-            Retry
-          </button>
-        </div>
+        <h2 className="mb-4 text-2xl font-bold">Cases</h2>
+        <Card className="border-destructive border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <AlertCircle className="mb-3 h-8 w-8 text-destructive" />
+            <h3 className="mb-2 text-lg font-semibold text-destructive">
+              Failed to load cases
+            </h3>
+            <p className="mb-4 max-w-md text-sm text-muted-foreground">
+              {error instanceof Error ? error.message : 'An unexpected error occurred.'}
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => window.location.reload()}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -552,282 +600,338 @@ const CaseListPage = () => {
   if (!demo && displayCases.length === 0 && !search && !statusFilter && !typeFilter && !priorityFilter && !fprFilter) {
     return (
       <div>
-        <h2 style={styles.heading}>Cases</h2>
-        <div style={styles.placeholder}>
-          <h3 style={styles.placeholderTitle}>No cases yet</h3>
-          <p style={styles.placeholderText}>
-            Cases will appear here once emails are ingested and classified by
-            the system.
-          </p>
-        </div>
+        <h2 className="mb-4 text-2xl font-bold">Cases</h2>
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <Inbox className="mb-3 h-8 w-8 text-muted-foreground/50" />
+            <h3 className="mb-2 text-lg font-semibold text-slate-600">No cases yet</h3>
+            <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+              Cases will appear here once emails are ingested and classified by
+              the system.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
+
+  // Merge all saved view names for the load-view select
+  const allViewNames = [
+    ...savedViews.map((v) => ({ name: v.name, label: v.name })),
+    ...serverViews
+      .filter((sv) => !savedViews.some((lv) => lv.name === sv.name))
+      .map((sv) => ({ name: sv.name, label: `${sv.name} (server)` })),
+  ];
 
   return (
     <div>
       {/* FR-128.A5: LLM mode degradation banner */}
       <LlmModeBanner />
 
-      <h2 style={styles.heading}>Cases</h2>
+      <h2 className="mb-4 text-2xl font-bold">Cases</h2>
 
       {/* FR-050.A2: Role-based case filtering indicator */}
       {user && user.roles && user.roles.length > 0 && (
-        <span
+        <Badge
           data-testid="role-filter-chip"
-          style={styles.roleChip}
+          variant="secondary"
+          className="mb-3 bg-blue-50 text-blue-800 border-blue-200"
         >
           Showing cases for: {user.roles.join(', ')}
-        </span>
+        </Badge>
       )}
 
       {/* Debounced search indicator */}
       {!demo && isFetching && debouncedSearch && (
-        <div data-testid="search-loading" aria-live="polite" style={{ fontSize: '0.85rem', color: '#3b82f6', marginBottom: '0.5rem' }}>
+        <div data-testid="search-loading" aria-live="polite" className="mb-2 flex items-center gap-1.5 text-sm text-blue-500">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
           Searching...
         </div>
       )}
 
       {/* Search and Filters */}
-      <div style={styles.filterBar} role="search" aria-label="Case filters">
-        <input
-          ref={searchInputRef}
-          type="search"
-          placeholder="Search cases..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          style={styles.searchInput}
-          data-testid="case-search-input"
-          aria-label="Search cases"
-        />
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={styles.select}>
-          <option value="">All Statuses</option>
-          {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
-        </select>
-        <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }} style={styles.select}>
-          <option value="">All Types</option>
-          {TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <select value={priorityFilter} onChange={(e) => { setPriorityFilter(e.target.value); setPage(1); }} style={styles.select}>
-          <option value="">All Priorities</option>
-          {PRIORITY_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <select value={fprFilter} onChange={(e) => { setFprFilter(e.target.value); setPage(1); }} style={styles.select}>
-          <option value="">All FPRs</option>
-          {FPR_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
-        </select>
-        <input
+      <div className="mb-4 flex flex-wrap items-center gap-3" role="search" aria-label="Case filters">
+        <div className="relative w-[220px]">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            ref={searchInputRef}
+            type="search"
+            placeholder="Search cases..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="pl-8"
+            data-testid="case-search-input"
+            aria-label="Search cases"
+          />
+        </div>
+
+        <Select value={toSelectValue(statusFilter)} onValueChange={(v) => { setStatusFilter(fromSelectValue(v)); setPage(1); }}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All Statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Statuses</SelectItem>
+            {STATUS_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, ' ')}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={toSelectValue(typeFilter)} onValueChange={(v) => { setTypeFilter(fromSelectValue(v)); setPage(1); }}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Types</SelectItem>
+            {TYPE_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={toSelectValue(priorityFilter)} onValueChange={(v) => { setPriorityFilter(fromSelectValue(v)); setPage(1); }}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All Priorities" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Priorities</SelectItem>
+            {PRIORITY_OPTIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={toSelectValue(fprFilter)} onValueChange={(v) => { setFprFilter(fromSelectValue(v)); setPage(1); }}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All FPRs" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All FPRs</SelectItem>
+            {FPR_OPTIONS.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Input
           type="text"
           placeholder="Location (city)..."
           value={locationFilter}
           onChange={(e) => { setLocationFilter(e.target.value); setPage(1); }}
-          style={styles.searchInput}
+          className="w-[220px]"
           data-testid="filter-location"
         />
-        <input
+        <Input
           type="text"
           placeholder="Vendor..."
           value={vendorFilter}
           onChange={(e) => { setVendorFilter(e.target.value); setPage(1); }}
-          style={styles.searchInput}
+          className="w-[220px]"
           data-testid="filter-vendor"
         />
-        <select
-          value={tatStateFilter}
-          onChange={(e) => { setTatStateFilter(e.target.value); setPage(1); }}
-          style={styles.select}
-          data-testid="filter-tat-state"
+
+        <Select
+          value={toSelectValue(tatStateFilter)}
+          onValueChange={(v) => { setTatStateFilter(fromSelectValue(v)); setPage(1); }}
         >
-          <option value="">All TAT States</option>
-          {TAT_STATE_OPTIONS.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ').toUpperCase()}</option>)}
-        </select>
-        <input
+          <SelectTrigger className="w-[180px]" data-testid="filter-tat-state">
+            <SelectValue placeholder="All TAT States" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All TAT States</SelectItem>
+            {TAT_STATE_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, ' ').toUpperCase()}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Input
           type="text"
           placeholder="Sender domain..."
           value={senderDomainFilter}
           onChange={(e) => { setSenderDomainFilter(e.target.value); setPage(1); }}
-          style={styles.searchInput}
+          className="w-[220px]"
           data-testid="filter-sender-domain"
         />
       </div>
 
       {/* Save / Load Views (FR-050.A3) */}
-      <div style={styles.viewBar} data-testid="saved-views-bar">
-        <button onClick={handleSaveView} style={styles.viewButton} data-testid="save-view-btn">
+      <div className="mb-3 flex items-center gap-2" data-testid="saved-views-bar">
+        <Button variant="outline" size="sm" onClick={handleSaveView} data-testid="save-view-btn">
+          <Save className="mr-1.5 h-3.5 w-3.5" />
           Save View
-        </button>
-        {(savedViews.length > 0 || serverViews.length > 0) && (
-          <select
-            onChange={(e) => { if (e.target.value) handleLoadView(e.target.value); e.target.value = ''; }}
-            style={styles.select}
-            data-testid="load-view-select"
-            defaultValue=""
+        </Button>
+        {allViewNames.length > 0 && (
+          <Select
+            value="__load__"
+            onValueChange={(v) => { if (v !== '__load__') handleLoadView(v); }}
           >
-            <option value="" disabled>Load View...</option>
-            {savedViews.map((v) => (
-              <option key={v.name} value={v.name}>{v.name}</option>
-            ))}
-            {serverViews.filter((sv: any) => !savedViews.some(lv => lv.name === sv.name)).map((sv: any) => (
-              <option key={sv.name || sv.id} value={sv.name}>{sv.name} (server)</option>
-            ))}
-          </select>
+            <SelectTrigger className="w-[180px]" data-testid="load-view-select">
+              <SelectValue placeholder="Load View..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__load__" disabled>Load View...</SelectItem>
+              {allViewNames.map((v) => (
+                <SelectItem key={v.name} value={v.name}>{v.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
       </div>
 
       {/* Sort Mode Toggle */}
-      <div style={styles.sortModeBar} data-testid="sort-mode-toggle">
-        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sort by:</span>
-        <button
+      <div className="mb-3 flex items-center gap-2" data-testid="sort-mode-toggle">
+        <span className="text-sm font-semibold text-slate-600">
+          <ArrowUpDown className="mr-1 inline-block h-3.5 w-3.5" />
+          Sort by:
+        </span>
+        <Button
+          variant={sortMode === 'fifo' ? 'default' : 'outline'}
+          size="sm"
           onClick={() => setSortMode('fifo')}
-          style={sortMode === 'fifo' ? { ...styles.sortModeButton, ...styles.sortModeButtonActive } : styles.sortModeButton}
           data-testid="sort-mode-fifo"
         >
           FIFO
-        </button>
-        <button
+        </Button>
+        <Button
+          variant={sortMode === 'criticality' ? 'default' : 'outline'}
+          size="sm"
           onClick={() => setSortMode('criticality')}
-          style={sortMode === 'criticality' ? { ...styles.sortModeButton, ...styles.sortModeButtonActive } : styles.sortModeButton}
           data-testid="sort-mode-criticality"
         >
           Criticality
-        </button>
+        </Button>
       </div>
 
       {/* Bulk Action Toolbar */}
       {selectedIds.size > 0 && (
-        <div style={styles.bulkToolbar} data-testid="bulk-toolbar">
-          <span style={styles.bulkCount}>{selectedIds.size} selected</span>
-          <button onClick={handleBulkReassign} style={styles.bulkButton}>Reassign</button>
-          <button onClick={handleBulkChangePriority} style={styles.bulkButton}>Change Priority</button>
-          <button onClick={handleBulkClose} style={{ ...styles.bulkButton, backgroundColor: '#fee2e2', color: '#dc2626' }}>Close</button>
-          <button onClick={() => setSelectedIds(new Set())} style={styles.bulkButton}>Clear Selection</button>
+        <div className="mb-3 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3" data-testid="bulk-toolbar">
+          <span className="text-sm font-semibold text-blue-800">{selectedIds.size} selected</span>
+          <Button variant="outline" size="sm" onClick={handleBulkReassign}>Reassign</Button>
+          <Button variant="outline" size="sm" onClick={handleBulkChangePriority}>Change Priority</Button>
+          <Button variant="outline" size="sm" onClick={handleBulkClose} className="bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border-red-200">Close</Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Clear Selection</Button>
         </div>
       )}
 
       {/* Table */}
-      <div style={styles.tableContainer} role="region" aria-label="Cases table" aria-live="polite">
-        <table style={styles.table} role="table">
-          <thead>
-            <tr>
-              <th style={styles.th}>
-                <input
-                  type="checkbox"
+      <Card role="region" aria-label="Cases table" aria-live="polite">
+        <Table role="table">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
                   checked={allOnPageSelected}
-                  onChange={toggleSelectAll}
+                  onCheckedChange={toggleSelectAll}
                   aria-label="Select all cases on this page"
                 />
-              </th>
-              <th style={styles.thSortable} onClick={(e) => handleSort('caseNumber', e.shiftKey)}>
+              </TableHead>
+              <TableHead className="cursor-pointer select-none whitespace-nowrap text-xs uppercase" tabIndex={0} role="button" onClick={(e) => handleSort('caseNumber', e.shiftKey)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort('caseNumber', e.shiftKey); } }}>
                 Case #{sortIndicator('caseNumber')}
-              </th>
-              <th style={styles.thSortable} onClick={(e) => handleSort('subject', e.shiftKey)}>
+              </TableHead>
+              <TableHead className="cursor-pointer select-none whitespace-nowrap text-xs uppercase" tabIndex={0} role="button" onClick={(e) => handleSort('subject', e.shiftKey)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort('subject', e.shiftKey); } }}>
                 Subject{sortIndicator('subject')}
-              </th>
-              <th style={styles.thSortable} onClick={(e) => handleSort('type', e.shiftKey)}>
+              </TableHead>
+              <TableHead className="cursor-pointer select-none whitespace-nowrap text-xs uppercase" tabIndex={0} role="button" onClick={(e) => handleSort('type', e.shiftKey)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort('type', e.shiftKey); } }}>
                 Type{sortIndicator('type')}
-              </th>
-              <th style={styles.thSortable} onClick={(e) => handleSort('status', e.shiftKey)}>
+              </TableHead>
+              <TableHead className="cursor-pointer select-none whitespace-nowrap text-xs uppercase" tabIndex={0} role="button" onClick={(e) => handleSort('status', e.shiftKey)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort('status', e.shiftKey); } }}>
                 Status{sortIndicator('status')}
-              </th>
-              <th style={styles.thSortable} onClick={(e) => handleSort('priority', e.shiftKey)}>
+              </TableHead>
+              <TableHead className="cursor-pointer select-none whitespace-nowrap text-xs uppercase" tabIndex={0} role="button" onClick={(e) => handleSort('priority', e.shiftKey)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort('priority', e.shiftKey); } }}>
                 Priority{sortIndicator('priority')}
-              </th>
-              <th style={styles.th}>
+              </TableHead>
+              <TableHead className="whitespace-nowrap text-xs uppercase">
                 Confidence
-              </th>
-              <th style={styles.thSortable} onClick={(e) => handleSort('assignedFpr', e.shiftKey)}>
+              </TableHead>
+              <TableHead className="cursor-pointer select-none whitespace-nowrap text-xs uppercase" tabIndex={0} role="button" onClick={(e) => handleSort('assignedFpr', e.shiftKey)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort('assignedFpr', e.shiftKey); } }}>
                 Assigned FPR{sortIndicator('assignedFpr')}
-              </th>
-              <th style={styles.thSortable} onClick={(e) => handleSort('tatDue', e.shiftKey)}>
+              </TableHead>
+              <TableHead className="cursor-pointer select-none whitespace-nowrap text-xs uppercase" tabIndex={0} role="button" onClick={(e) => handleSort('tatDue', e.shiftKey)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort('tatDue', e.shiftKey); } }}>
                 TAT Due{sortIndicator('tatDue')}
-              </th>
-              <th style={styles.thSortable} onClick={(e) => handleSort('created', e.shiftKey)}>
+              </TableHead>
+              <TableHead className="cursor-pointer select-none whitespace-nowrap text-xs uppercase" tabIndex={0} role="button" onClick={(e) => handleSort('created', e.shiftKey)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort('created', e.shiftKey); } }}>
                 Created{sortIndicator('created')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {displayCases.map((c, rowIdx) => {
               const tatColor = getTatColor(c.tatDue, c.created);
               const overdue = isOverdue(c);
               const isFocused = rowIdx === focusedIndex;
-              const rowStyle: CSSProperties = {
-                ...styles.tr,
-                ...(overdue ? { borderLeft: '4px solid #dc3545' } : {}),
-                ...(isFocused ? { outline: '2px solid #3b82f6', outlineOffset: '-2px' } : {}),
-              };
               return (
-                <tr
+                <TableRow
                   key={c.id}
-                  style={rowStyle}
+                  className={cn(
+                    'cursor-pointer',
+                    overdue && 'border-l-4 border-l-red-500',
+                    isFocused && 'ring-2 ring-blue-500 ring-inset',
+                  )}
                   data-testid={overdue ? 'overdue-row' : 'case-row'}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#f1f5f9'; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
                 >
-                  <td style={styles.td}>
-                    <input
-                      type="checkbox"
+                  <TableCell className="whitespace-nowrap">
+                    <Checkbox
                       checked={selectedIds.has(c.id)}
-                      onChange={() => toggleSelect(c.id)}
+                      onCheckedChange={() => toggleSelect(c.id)}
                       onClick={(e) => e.stopPropagation()}
                       aria-label={`Select case ${c.caseNumber}`}
                     />
-                  </td>
-                  <td style={styles.td} onClick={() => handleRowClick(c.id)}><strong>{c.caseNumber}</strong></td>
-                  <td style={styles.td} onClick={() => handleRowClick(c.id)}>{c.subject}</td>
-                  <td style={styles.td} onClick={() => handleRowClick(c.id)}>{c.type}</td>
-                  <td style={styles.td} onClick={() => handleRowClick(c.id)}><CaseStatusBadge status={c.status} /></td>
-                  <td style={styles.td} onClick={() => handleRowClick(c.id)}><PriorityIndicator priority={c.priority} /></td>
-                  <td style={styles.td} onClick={() => handleRowClick(c.id)}>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap font-medium" onClick={() => handleRowClick(c.id)}>{c.caseNumber}</TableCell>
+                  <TableCell className="whitespace-nowrap" onClick={() => handleRowClick(c.id)}>{c.subject}</TableCell>
+                  <TableCell className="whitespace-nowrap" onClick={() => handleRowClick(c.id)}>{c.type}</TableCell>
+                  <TableCell className="whitespace-nowrap" onClick={() => handleRowClick(c.id)}><CaseStatusBadge status={c.status} /></TableCell>
+                  <TableCell className="whitespace-nowrap" onClick={() => handleRowClick(c.id)}><PriorityIndicator priority={c.priority} /></TableCell>
+                  <TableCell className="whitespace-nowrap" onClick={() => handleRowClick(c.id)}>
                     {c.confidenceBand ? <ConfidenceBadge band={c.confidenceBand} /> : '--'}
-                  </td>
-                  <td style={styles.td} onClick={() => handleRowClick(c.id)}>{c.assignedFpr}</td>
-                  <td style={{ ...styles.td, borderLeft: `3px solid ${tatColor}` }} onClick={() => handleRowClick(c.id)}>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap" onClick={() => handleRowClick(c.id)}>{c.assignedFpr}</TableCell>
+                  <TableCell className={cn('whitespace-nowrap', tatColorBorderClass[tatColor])} onClick={() => handleRowClick(c.id)}>
                     {c.tatDue}
-                  </td>
-                  <td style={styles.td} onClick={() => handleRowClick(c.id)}>{c.created}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap" onClick={() => handleRowClick(c.id)}>{c.created}</TableCell>
+                </TableRow>
               );
             })}
             {displayCases.length === 0 && (
-              <tr>
-                <td colSpan={10} style={{ ...styles.td, textAlign: 'center', color: '#94a3b8' }}>
+              <TableRow>
+                <TableCell colSpan={10} className="text-center text-muted-foreground">
                   No cases found matching filters.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
 
       {/* Pagination */}
-      <div style={styles.pagination}>
-        <div style={styles.pageSizeControl}>
-          <span style={styles.paginationLabel}>Show:</span>
-          <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} style={styles.select}>
-            {PAGE_SIZE_OPTIONS.map((size) => (
-              <option key={size} value={size}>{size}</option>
-            ))}
-          </select>
+      <div className="mt-4 flex items-center justify-between py-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Show:</span>
+          <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
+            <SelectTrigger className="w-[80px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <SelectItem key={size} value={String(size)}>{size}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <div style={styles.pageControls}>
-          <button
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            style={styles.pageButton}
           >
+            <ChevronLeft className="mr-1 h-4 w-4" />
             Previous
-          </button>
-          <span style={styles.pageInfo}>
+          </Button>
+          <span className="text-sm text-muted-foreground">
             Page {page} of {totalPages} ({totalCount} total)
           </span>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            style={styles.pageButton}
           >
             Next
-          </button>
+            <ChevronRight className="ml-1 h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -838,235 +942,6 @@ const CaseListPage = () => {
       />
     </div>
   );
-};
-
-const styles: Record<string, CSSProperties> = {
-  heading: {
-    margin: '0 0 1rem 0',
-    fontSize: '1.5rem',
-    fontWeight: 700,
-  },
-  filterBar: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '0.75rem',
-    marginBottom: '1rem',
-    alignItems: 'center',
-  },
-  searchInput: {
-    padding: '0.5rem 0.75rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '6px',
-    fontSize: '0.875rem',
-    width: '220px',
-  },
-  select: {
-    padding: '0.5rem 0.75rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '6px',
-    fontSize: '0.875rem',
-    backgroundColor: 'var(--color-bg)',
-  },
-  bulkToolbar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    padding: '0.75rem 1rem',
-    marginBottom: '0.75rem',
-    backgroundColor: '#eff6ff',
-    border: '1px solid #bfdbfe',
-    borderRadius: '8px',
-  },
-  bulkCount: {
-    fontSize: '0.875rem',
-    fontWeight: 600,
-    color: '#1e40af',
-  },
-  bulkButton: {
-    padding: '0.375rem 0.75rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '4px',
-    fontSize: '0.8rem',
-    cursor: 'pointer',
-    backgroundColor: 'var(--color-bg)',
-    fontWeight: 500,
-  },
-  tableContainer: {
-    overflowX: 'auto',
-    border: '1px solid var(--color-border)',
-    borderRadius: '8px',
-    backgroundColor: 'var(--color-surface)',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    fontSize: '0.875rem',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '0.75rem 1rem',
-    borderBottom: '2px solid var(--color-border)',
-    fontSize: '0.75rem',
-    textTransform: 'uppercase',
-    fontWeight: 600,
-    color: '#64748b',
-    whiteSpace: 'nowrap',
-  },
-  thSortable: {
-    textAlign: 'left',
-    padding: '0.75rem 1rem',
-    borderBottom: '2px solid var(--color-border)',
-    fontSize: '0.75rem',
-    textTransform: 'uppercase',
-    fontWeight: 600,
-    color: '#64748b',
-    whiteSpace: 'nowrap',
-    cursor: 'pointer',
-    userSelect: 'none',
-  },
-  tr: {
-    cursor: 'pointer',
-    transition: 'background-color 0.15s',
-  },
-  td: {
-    padding: '0.75rem 1rem',
-    borderBottom: '1px solid var(--color-border)',
-    whiteSpace: 'nowrap',
-  },
-  pagination: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: '1rem',
-    padding: '0.5rem 0',
-  },
-  pageSizeControl: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-  },
-  paginationLabel: {
-    fontSize: '0.85rem',
-    color: '#64748b',
-  },
-  pageControls: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-  },
-  pageButton: {
-    padding: '0.375rem 0.75rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '4px',
-    fontSize: '0.85rem',
-    cursor: 'pointer',
-    backgroundColor: 'var(--color-bg)',
-  },
-  pageInfo: {
-    fontSize: '0.85rem',
-    color: '#64748b',
-  },
-  placeholder: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '4rem 2rem',
-    border: '1px dashed var(--color-border)',
-    borderRadius: '8px',
-    backgroundColor: 'var(--color-surface)',
-    textAlign: 'center',
-  },
-  placeholderIcon: {
-    fontSize: '2.5rem',
-    marginBottom: '0.75rem',
-    opacity: 0.5,
-  },
-  placeholderTitle: {
-    margin: '0 0 0.5rem 0',
-    fontSize: '1.1rem',
-    fontWeight: 600,
-    color: '#475569',
-  },
-  placeholderText: {
-    margin: 0,
-    fontSize: '0.875rem',
-    color: '#94a3b8',
-    maxWidth: '480px',
-    lineHeight: 1.5,
-  },
-  code: {
-    backgroundColor: '#f1f5f9',
-    padding: '0.15rem 0.4rem',
-    borderRadius: '4px',
-    fontSize: '0.8rem',
-    fontFamily: 'monospace',
-  },
-  spinner: {
-    width: '32px',
-    height: '32px',
-    border: '3px solid var(--color-border)',
-    borderTop: '3px solid var(--color-accent, #3b82f6)',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
-    marginBottom: '1rem',
-  },
-  retryButton: {
-    marginTop: '1rem',
-    padding: '0.5rem 1.25rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '6px',
-    backgroundColor: 'var(--color-bg)',
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-    fontWeight: 500,
-  },
-  viewBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    marginBottom: '0.75rem',
-  },
-  viewButton: {
-    padding: '0.375rem 0.75rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '4px',
-    fontSize: '0.8rem',
-    cursor: 'pointer',
-    backgroundColor: 'var(--color-bg)',
-    fontWeight: 500,
-  },
-  sortModeBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    marginBottom: '0.75rem',
-  },
-  sortModeButton: {
-    padding: '0.375rem 0.75rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '4px',
-    fontSize: '0.8rem',
-    cursor: 'pointer',
-    backgroundColor: 'var(--color-bg)',
-    fontWeight: 500,
-  },
-  sortModeButtonActive: {
-    backgroundColor: '#3b82f6',
-    color: '#fff',
-    borderColor: '#3b82f6',
-  },
-  roleChip: {
-    display: 'inline-block',
-    padding: '0.25rem 0.75rem',
-    marginBottom: '0.75rem',
-    backgroundColor: '#eff6ff',
-    border: '1px solid #bfdbfe',
-    borderRadius: '9999px',
-    fontSize: '0.8rem',
-    fontWeight: 500,
-    color: '#1e40af',
-  },
 };
 
 export default CaseListPage;

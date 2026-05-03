@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch } from '../../../api/client';
+import { Card, CardContent } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface FeatureFlag {
   id: string;
@@ -89,6 +93,12 @@ function mapApiResponseToFlags(data: FeatureFlagApiResponse): FeatureFlag[] {
   }));
 }
 
+const scopeVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
+  global: 'default',
+  'per-role': 'secondary',
+  'per-user': 'outline',
+};
+
 export function FeatureFlags() {
   const queryClient = useQueryClient();
 
@@ -126,54 +136,65 @@ export function FeatureFlags() {
 
   if (isLoading) {
     return (
-      <div className="feature-flags" data-testid="flags-loading">
-        <div className="section-header">
-          <h3>Feature Flags</h3>
+      <div className="space-y-4" data-testid="flags-loading">
+        <div>
+          <h3 className="text-lg font-semibold">Feature Flags</h3>
         </div>
-        <p>Loading feature flags...</p>
+        <p className="text-muted-foreground">Loading feature flags...</p>
       </div>
     );
   }
 
   return (
-    <div className="feature-flags" data-testid="feature-flags">
-      <div className="section-header">
-        <h3>Feature Flags</h3>
-        <span className="subtitle">{displayFlags.filter((f) => f.enabled).length} / {displayFlags.length} enabled</span>
+    <div className="space-y-4" data-testid="feature-flags">
+      <div className="flex items-center gap-3">
+        <h3 className="text-lg font-semibold">Feature Flags</h3>
+        <span className="text-sm text-muted-foreground">
+          {displayFlags.filter((f) => f.enabled).length} / {displayFlags.length} enabled
+        </span>
         {isError && (
-          <span style={{ color: '#ca8a04', fontSize: '0.75rem', marginLeft: '0.5rem' }} data-testid="flags-api-fallback">
+          <span className="text-xs text-yellow-600 ml-2" data-testid="flags-api-fallback">
             (using cached data)
           </span>
         )}
       </div>
 
-      <div className="flags-list">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {displayFlags.map((flag) => (
-          <div key={flag.id} className={`flag-card ${flag.enabled ? 'enabled' : 'disabled'}`}>
-            <div className="flag-info">
-              <div className="flag-header">
-                <code className="flag-key">{flag.key}</code>
-                <span className={`scope-badge scope-${flag.scope}`}>{flag.scope}</span>
+          <Card
+            key={flag.id}
+            className={cn(
+              'transition-colors',
+              flag.enabled ? 'border-green-200' : 'border-muted',
+            )}
+          >
+            <CardContent className="flex items-start justify-between gap-4 p-4">
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <code className="rounded bg-muted px-1.5 py-0.5 text-sm">{flag.key}</code>
+                  <Badge variant={scopeVariant[flag.scope]}>{flag.scope}</Badge>
+                </div>
+                <h4 className="font-semibold">{flag.label}</h4>
+                <p className="text-sm text-muted-foreground">{flag.description}</p>
+                <span
+                  className="text-xs text-slate-500"
+                  data-testid={`rollout-${flag.key}`}
+                >
+                  Rollout: {flag.rolloutPercent}%
+                </span>
               </div>
-              <h4 className="flag-label">{flag.label}</h4>
-              <p className="flag-desc">{flag.description}</p>
-              <span className="flag-rollout" data-testid={`rollout-${flag.key}`} style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                Rollout: {flag.rolloutPercent}%
-              </span>
-            </div>
-            <div className="flag-toggle">
-              <label className="toggle-switch">
-                <input
-                  type="checkbox"
+              <div className="flex flex-col items-center gap-1 pt-1">
+                <Switch
                   checked={flag.enabled}
-                  onChange={() => toggleFlag(flag)}
+                  onCheckedChange={() => toggleFlag(flag)}
                   data-testid={`toggle-${flag.key}`}
                 />
-                <span className="toggle-slider"></span>
-              </label>
-              <span className="toggle-label">{flag.enabled ? 'ON' : 'OFF'}</span>
-            </div>
-          </div>
+                <span className="text-xs font-medium text-muted-foreground">
+                  {flag.enabled ? 'ON' : 'OFF'}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>

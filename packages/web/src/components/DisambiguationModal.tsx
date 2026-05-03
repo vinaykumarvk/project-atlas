@@ -1,47 +1,48 @@
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { apiPost } from '../api/client';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
-/**
- * A candidate match returned by the CanonicalLookupService FUZZY match.
- */
 export interface DisambiguationCandidate {
-  /** The canonical form of the master record */
   canonicalForm: string;
-  /** Confidence score (0.0 - 1.0) */
   confidence: number;
-  /** The match type (typically FUZZY) */
   matchType: string;
-  /** Display label (e.g. city name, case type name) */
   displayLabel: string;
-  /** The master record ID for selection */
   recordId: string;
 }
 
 export interface DisambiguationModalProps {
-  /** Whether the modal is visible */
   isOpen: boolean;
-  /** The case ID this disambiguation applies to */
   caseId: string;
-  /** The raw value that produced a fuzzy match */
   rawValue: string;
-  /** The field being disambiguated (e.g. "propertyCity", "caseType") */
   fieldName: string;
-  /** The candidate matches to choose from */
   candidates: DisambiguationCandidate[];
-  /** Called when the modal is closed without selection */
   onClose: () => void;
-  /** Called after a successful selection */
   onResolved: (selectedCanonicalForm: string) => void;
 }
 
-/**
- * DisambiguationModal
- *
- * Displayed when the CanonicalLookupService returns a FUZZY match during triage.
- * Shows the top matching candidates with confidence scores and allows the
- * officer to select the correct master record. On confirmation, calls
- * POST /triage/:caseId/correct with the selected canonical value.
- */
+function getConfidenceStyle(confidence: number) {
+  if (confidence >= 0.8) return 'bg-green-100 text-green-700';
+  if (confidence >= 0.6) return 'bg-yellow-100 text-yellow-700';
+  return 'bg-red-100 text-red-700';
+}
+
+function getConfidenceLabel(confidence: number): string {
+  if (confidence >= 0.8) return 'High';
+  if (confidence >= 0.6) return 'Medium';
+  return 'Low';
+}
+
 export function DisambiguationModal({
   isOpen,
   caseId,
@@ -54,8 +55,6 @@ export function DisambiguationModal({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  if (!isOpen) return null;
 
   const selectedCandidate = candidates.find((c) => c.recordId === selectedId);
 
@@ -82,272 +81,85 @@ export function DisambiguationModal({
     }
   };
 
-  const getConfidenceColor = (confidence: number): string => {
-    if (confidence >= 0.8) return '#16a34a';
-    if (confidence >= 0.6) return '#ca8a04';
-    return '#dc2626';
-  };
-
-  const getConfidenceLabel = (confidence: number): string => {
-    if (confidence >= 0.8) return 'High';
-    if (confidence >= 0.6) return 'Medium';
-    return 'Low';
-  };
-
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div style={styles.header}>
-          <h3 style={styles.title}>Disambiguate: {fieldName}</h3>
-          <button onClick={onClose} style={styles.closeButton} aria-label="Close">
-            &times;
-          </button>
-        </div>
-
-        {/* Description */}
-        <div style={styles.description}>
-          <p style={styles.descText}>
-            The value <strong>&quot;{rawValue}&quot;</strong> produced a fuzzy match.
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[560px]">
+        <DialogHeader>
+          <DialogTitle>Disambiguate: {fieldName}</DialogTitle>
+          <DialogDescription>
+            The value <strong>"{rawValue}"</strong> produced a fuzzy match.
             Please select the correct master record from the candidates below.
-          </p>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Candidates list */}
-        <div style={styles.candidateList}>
+        <div className="space-y-2 py-2">
           {candidates.map((candidate) => {
             const isSelected = selectedId === candidate.recordId;
             return (
               <button
                 key={candidate.recordId}
                 onClick={() => setSelectedId(candidate.recordId)}
-                style={{
-                  ...styles.candidateRow,
-                  ...(isSelected ? styles.candidateRowSelected : {}),
-                }}
+                className={cn(
+                  'flex w-full items-center gap-4 rounded-lg border p-3 text-left transition-colors',
+                  isSelected
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+                    : 'border-border bg-background hover:bg-muted/50',
+                )}
               >
-                <div style={styles.candidateInfo}>
-                  <span style={styles.candidateLabel}>
+                <div className="flex-1 space-y-0.5">
+                  <span className="text-sm font-semibold text-foreground">
                     {candidate.displayLabel || candidate.canonicalForm}
                   </span>
-                  <span style={styles.candidateCanonical}>
+                  <span className="block text-xs text-muted-foreground">
                     {candidate.canonicalForm}
                   </span>
                 </div>
-                <div style={styles.candidateScore}>
-                  <span
-                    style={{
-                      ...styles.confidenceBadge,
-                      backgroundColor: `${getConfidenceColor(candidate.confidence)}20`,
-                      color: getConfidenceColor(candidate.confidence),
-                    }}
-                  >
-                    {(candidate.confidence * 100).toFixed(0)}% -{' '}
-                    {getConfidenceLabel(candidate.confidence)}
-                  </span>
-                </div>
-                <div style={styles.radioIndicator}>
-                  <div
-                    style={{
-                      ...styles.radio,
-                      ...(isSelected ? styles.radioSelected : {}),
-                    }}
-                  />
-                </div>
+                <span
+                  className={cn(
+                    'shrink-0 rounded px-2 py-0.5 text-[0.7rem] font-bold',
+                    getConfidenceStyle(candidate.confidence),
+                  )}
+                >
+                  {(candidate.confidence * 100).toFixed(0)}% - {getConfidenceLabel(candidate.confidence)}
+                </span>
+                <div
+                  className={cn(
+                    'h-4.5 w-4.5 shrink-0 rounded-full border-2',
+                    isSelected
+                      ? 'border-blue-500 bg-blue-500 shadow-[inset_0_0_0_3px_white]'
+                      : 'border-muted-foreground/30 bg-background',
+                  )}
+                />
               </button>
             );
           })}
         </div>
 
-        {/* Error */}
         {error && (
-          <div style={styles.errorBox}>
-            <p style={styles.errorText}>{error}</p>
-          </div>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
-        {/* Actions */}
-        <div style={styles.actions}>
-          <button onClick={onClose} style={styles.cancelButton}>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!selectedId || isSubmitting}
-            style={{
-              ...styles.confirmButton,
-              opacity: !selectedId || isSubmitting ? 0.5 : 1,
-            }}
-          >
-            {isSubmitting ? 'Submitting...' : 'Confirm Selection'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+          <Button onClick={handleConfirm} disabled={!selectedId || isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              'Confirm Selection'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const styles: Record<string, CSSProperties> = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  },
-  modal: {
-    backgroundColor: '#ffffff',
-    borderRadius: '12px',
-    width: '100%',
-    maxWidth: '560px',
-    maxHeight: '80vh',
-    overflow: 'auto',
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '1.25rem 1.5rem',
-    borderBottom: '1px solid #e2e8f0',
-  },
-  title: {
-    margin: 0,
-    fontSize: '1.1rem',
-    fontWeight: 700,
-    color: '#1e293b',
-  },
-  closeButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '1.5rem',
-    cursor: 'pointer',
-    color: '#94a3b8',
-    padding: '0 0.25rem',
-    lineHeight: 1,
-  },
-  description: {
-    padding: '1rem 1.5rem',
-    backgroundColor: '#f8fafc',
-    borderBottom: '1px solid #e2e8f0',
-  },
-  descText: {
-    margin: 0,
-    fontSize: '0.875rem',
-    color: '#475569',
-    lineHeight: 1.5,
-  },
-  candidateList: {
-    padding: '0.75rem 1.5rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem',
-  },
-  candidateRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    padding: '0.75rem 1rem',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    backgroundColor: '#ffffff',
-    cursor: 'pointer',
-    width: '100%',
-    textAlign: 'left',
-    transition: 'border-color 0.15s, background-color 0.15s',
-  },
-  candidateRowSelected: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#eff6ff',
-  },
-  candidateInfo: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.15rem',
-  },
-  candidateLabel: {
-    fontSize: '0.9rem',
-    fontWeight: 600,
-    color: '#1e293b',
-  },
-  candidateCanonical: {
-    fontSize: '0.75rem',
-    color: '#64748b',
-  },
-  candidateScore: {
-    flexShrink: 0,
-  },
-  confidenceBadge: {
-    display: 'inline-block',
-    padding: '0.2rem 0.6rem',
-    borderRadius: '4px',
-    fontSize: '0.7rem',
-    fontWeight: 700,
-  },
-  radioIndicator: {
-    flexShrink: 0,
-  },
-  radio: {
-    width: '18px',
-    height: '18px',
-    borderRadius: '50%',
-    border: '2px solid #cbd5e1',
-    backgroundColor: '#ffffff',
-  },
-  radioSelected: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#3b82f6',
-    boxShadow: 'inset 0 0 0 3px #ffffff',
-  },
-  errorBox: {
-    margin: '0 1.5rem',
-    padding: '0.75rem',
-    backgroundColor: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: '6px',
-  },
-  errorText: {
-    margin: 0,
-    fontSize: '0.8rem',
-    color: '#dc2626',
-  },
-  actions: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '0.75rem',
-    padding: '1rem 1.5rem',
-    borderTop: '1px solid #e2e8f0',
-  },
-  cancelButton: {
-    padding: '0.5rem 1.25rem',
-    border: '1px solid #e2e8f0',
-    borderRadius: '6px',
-    backgroundColor: '#ffffff',
-    fontSize: '0.85rem',
-    fontWeight: 500,
-    cursor: 'pointer',
-    color: '#475569',
-  },
-  confirmButton: {
-    padding: '0.5rem 1.25rem',
-    border: 'none',
-    borderRadius: '6px',
-    backgroundColor: '#3b82f6',
-    fontSize: '0.85rem',
-    fontWeight: 600,
-    cursor: 'pointer',
-    color: '#ffffff',
-  },
-};
 
 export default DisambiguationModal;

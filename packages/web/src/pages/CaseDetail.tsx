@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, type CSSProperties } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CaseStatusBadge, type CaseStatus } from '../components/CaseStatusBadge';
 import { PriorityIndicator, type Priority } from '../components/PriorityIndicator';
@@ -15,6 +15,49 @@ import { useConfirmTriage, useCorrectTriage } from '../hooks/useTriageQueue';
 import { useHotkeys } from '../hooks/useHotkeys';
 import { useAuth } from '../auth';
 import { apiGet, apiPost } from '../api/client';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  ArrowLeft,
+  User,
+  FileText,
+  MessageSquare,
+  AlertTriangle,
+  CheckCircle,
+  Loader2,
+  Send,
+  Eye,
+  Download,
+  Link2,
+  ShieldAlert,
+  ShieldCheck,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Pause,
+  Play,
+  UserCog,
+  Flag,
+  Lock,
+  FileDown,
+  Image,
+  XCircle,
+  PenLine,
+  Save,
+  MapPin,
+  Camera,
+  ClipboardList,
+} from 'lucide-react';
 
 type TabId = 'overview' | 'activity' | 'linked' | 'attachments' | 'reply-drafts';
 
@@ -406,24 +449,17 @@ const CaseDetailPage = () => {
       ? mapLiveCaseToData(liveCase, caseId || '')
       : null;
 
-  const tabs: Array<{ id: TabId; label: string }> = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'activity', label: 'Activity Log' },
-    { id: 'linked', label: 'Linked Cases' },
-    { id: 'attachments', label: 'Attachments' },
-    { id: 'reply-drafts', label: 'Reply Drafts' },
-  ];
-
   // Loading state (live mode)
   if (!demo && isLoading) {
     return (
       <div>
-        <button onClick={() => navigate('/cases')} style={styles.backButton}>
-          &larr; Back to Cases
-        </button>
-        <div style={styles.placeholder}>
-          <div style={styles.spinner} />
-          <p style={styles.placeholderText}>Loading case details...</p>
+        <Button variant="ghost" onClick={() => navigate('/cases')} className="mb-3 px-0 text-sm text-primary hover:bg-transparent">
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          Back to Cases
+        </Button>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-card p-16 text-center">
+          <Loader2 className="mb-4 h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading case details...</p>
         </div>
       </div>
     );
@@ -433,17 +469,17 @@ const CaseDetailPage = () => {
   if (!demo && isError) {
     return (
       <div>
-        <button onClick={() => navigate('/cases')} style={styles.backButton}>
-          &larr; Back to Cases
-        </button>
-        <div style={{ ...styles.placeholder, borderColor: '#fecaca' }}>
-          <h3 style={{ ...styles.placeholderTitle, color: '#dc2626' }}>
-            Failed to load case
-          </h3>
-          <p style={styles.placeholderText}>
+        <Button variant="ghost" onClick={() => navigate('/cases')} className="mb-3 px-0 text-sm text-primary hover:bg-transparent">
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          Back to Cases
+        </Button>
+        <Alert variant="destructive" className="flex flex-col items-center p-16 text-center">
+          <AlertTriangle className="mb-2 h-6 w-6" />
+          <AlertTitle className="text-lg">Failed to load case</AlertTitle>
+          <AlertDescription>
             {error instanceof Error ? error.message : 'An unexpected error occurred.'}
-          </p>
-        </div>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -451,12 +487,13 @@ const CaseDetailPage = () => {
   if (!caseData) {
     return (
       <div>
-        <button onClick={() => navigate('/cases')} style={styles.backButton}>
-          &larr; Back to Cases
-        </button>
-        <div style={styles.placeholder}>
-          <h3 style={styles.placeholderTitle}>Case not found</h3>
-          <p style={styles.placeholderText}>
+        <Button variant="ghost" onClick={() => navigate('/cases')} className="mb-3 px-0 text-sm text-primary hover:bg-transparent">
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          Back to Cases
+        </Button>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-card p-16 text-center">
+          <h3 className="mb-2 text-lg font-semibold text-slate-600">Case not found</h3>
+          <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
             The requested case could not be found.
           </p>
         </div>
@@ -562,129 +599,150 @@ const CaseDetailPage = () => {
       />
 
       {/* Three-pane flex layout (FR-051.A1) */}
-      <div style={styles.threePaneContainer} data-testid="three-pane-layout">
-        {/* Left pane — compact navigation sidebar */}
-        <aside style={styles.leftPane} data-testid="left-pane" aria-label="Case navigation sidebar">
-          <h4 style={styles.paneTitle}>Related Cases</h4>
-          {MOCK_LINKED_CASES.map((linked) => (
+      <div className="flex min-h-[600px]" data-testid="three-pane-layout">
+        {/* Left pane -- compact navigation sidebar */}
+        <aside className="w-1/4 max-w-[25%] shrink-0 overflow-y-auto border-r p-3" data-testid="left-pane" aria-label="Case navigation sidebar">
+          <h4 className="mb-2 text-xs font-semibold uppercase text-slate-600">Related Cases</h4>
+          {!demo && (
+            <p className="px-2 py-1 text-[0.7rem] text-slate-400">No linked cases</p>
+          )}
+          {demo && MOCK_LINKED_CASES.map((linked) => (
             <div
               key={linked.id}
-              style={{
-                ...styles.sidebarItem,
-                backgroundColor: linked.id === caseId ? '#f0f9ff' : 'transparent',
-              }}
+              className={cn(
+                'mb-1 cursor-pointer rounded p-2 transition-colors',
+                linked.id === caseId ? 'bg-blue-50' : 'bg-transparent hover:bg-muted',
+              )}
               onClick={() => navigate(`/cases/${linked.id}`)}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/cases/${linked.id}`); }}
             >
-              <strong style={{ fontSize: '0.75rem' }}>{linked.caseNumber}</strong>
-              <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block', marginTop: '0.15rem' }}>{linked.subject}</span>
+              <strong className="text-xs">{linked.caseNumber}</strong>
+              <span className="mt-0.5 block text-[0.7rem] text-slate-500">{linked.subject}</span>
             </div>
           ))}
-          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0.5rem 0' }} />
-          <div
-            style={{
-              ...styles.sidebarItem,
-              backgroundColor: '#f0f9ff',
-              borderLeft: '3px solid var(--color-accent, #3b82f6)',
-            }}
-          >
-            <strong style={{ fontSize: '0.75rem' }}>{caseData.caseNumber}</strong>
-            <span style={{ fontSize: '0.7rem', color: '#3b82f6', display: 'block', marginTop: '0.15rem' }}>Current Case</span>
+          <Separator className="my-2" />
+          <div className="mb-1 rounded border-l-[3px] border-l-primary bg-blue-50 p-2">
+            <strong className="text-xs">{caseData.caseNumber}</strong>
+            <span className="mt-0.5 block text-[0.7rem] text-blue-500">Current Case</span>
           </div>
         </aside>
 
-        {/* Center pane — main case detail content */}
-        <div style={styles.centerPane} data-testid="center-pane" role="main">
+        {/* Center pane -- main case detail content */}
+        <div className="w-1/2 max-w-[50%] shrink-0 overflow-y-auto px-4" data-testid="center-pane" role="main">
 
       {/* Header */}
-      <div style={styles.header}>
-        <button onClick={() => navigate('/cases')} style={styles.backButton}>
-          &larr; Back to Cases
-        </button>
-        <div style={styles.headerMain}>
-          <div style={styles.headerLeft}>
-            <h2 style={styles.caseNumber}>{caseData.caseNumber}</h2>
+      <div className="mb-6">
+        <Button variant="ghost" onClick={() => navigate('/cases')} className="mb-3 px-0 text-sm text-primary hover:bg-transparent">
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          Back to Cases
+        </Button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h2 className="m-0 text-2xl font-bold">{caseData.caseNumber}</h2>
             <CaseStatusBadge status={caseData.status} />
             <PriorityIndicator priority={caseData.priority} showLabel />
           </div>
-          <div style={styles.headerActions}>
+          <div className="flex flex-wrap gap-2">
             {!demo && (
               <>
-                <button
-                  style={{ ...styles.actionButton, backgroundColor: '#16a34a', color: '#fff', border: 'none' }}
+                <Button
+                  size="sm"
+                  className="bg-green-600 text-white hover:bg-green-700"
                   onClick={handleConfirmAI}
                   disabled={confirmTriage.isPending}
                 >
+                  <CheckCircle className="mr-1 h-3.5 w-3.5" />
                   {confirmTriage.isPending ? 'Confirming...' : 'Confirm AI'}
-                </button>
-                <button
-                  style={{ ...styles.actionButton, backgroundColor: '#6366f1', color: '#fff', border: 'none' }}
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-indigo-500 text-white hover:bg-indigo-600"
                   onClick={() => setShowCorrectForm(!showCorrectForm)}
                 >
+                  <PenLine className="mr-1 h-3.5 w-3.5" />
                   Correct
-                </button>
+                </Button>
               </>
             )}
-            <button
-              style={styles.actionButton}
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowStatusModal(!showStatusModal)}
             >
               Transition Status
-            </button>
+            </Button>
             {!demo && (
-              <button
-                style={styles.actionButton}
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setShowNoteForm(!showNoteForm)}
               >
+                <Plus className="mr-1 h-3.5 w-3.5" />
                 Add Note
-              </button>
+              </Button>
             )}
             {!demo && (
               <>
-                <button
-                  style={styles.actionButton}
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setShowPauseForm(!showPauseForm)}
                   data-testid="btn-pause-sla"
                 >
+                  <Pause className="mr-1 h-3.5 w-3.5" />
                   Pause SLA
-                </button>
-                <button
-                  style={styles.actionButton}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={handleResumeSla}
                   disabled={resumeSla.isPending}
                   data-testid="btn-resume-sla"
                 >
+                  <Play className="mr-1 h-3.5 w-3.5" />
                   {resumeSla.isPending ? 'Resuming...' : 'Resume SLA'}
-                </button>
-                <button
-                  style={styles.actionButton}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setShowReassignForm(!showReassignForm)}
                   data-testid="btn-reassign"
                 >
+                  <UserCog className="mr-1 h-3.5 w-3.5" />
                   Reassign
-                </button>
-                <button
-                  style={styles.actionButton}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setShowPriorityForm(!showPriorityForm)}
                   data-testid="btn-set-priority"
                 >
+                  <Flag className="mr-1 h-3.5 w-3.5" />
                   Set Priority
-                </button>
+                </Button>
               </>
             )}
-            <button style={styles.actionButton}>Assign Vendor</button>
-            <button style={styles.actionButton}>Link Case</button>
-            {/* FR-051.A2: Complete action panel — Change Priority & Close Case */}
-            <button
+            <Button variant="outline" size="sm">
+              <Send className="mr-1 h-3.5 w-3.5" />
+              Assign Vendor
+            </Button>
+            <Button variant="outline" size="sm">
+              <Link2 className="mr-1 h-3.5 w-3.5" />
+              Link Case
+            </Button>
+            {/* FR-051.A2: Complete action panel -- Change Priority & Close Case */}
+            <Button
               data-testid="change-priority-btn"
               onClick={() => setShowPriorityForm(true)}
-              style={{ ...styles.actionButton, backgroundColor: '#f59e0b', color: '#fff', border: 'none' }}
+              size="sm"
+              className="bg-amber-500 text-white hover:bg-amber-600"
             >
+              <Flag className="mr-1 h-3.5 w-3.5" />
               Change Priority
-            </button>
-            <button
+            </Button>
+            <Button
               data-testid="close-case-btn"
               onClick={() => {
                 if (window.confirm('Are you sure you want to close this case?')) {
@@ -693,278 +751,324 @@ const CaseDetailPage = () => {
                   }
                 }
               }}
-              style={{ ...styles.actionButton, backgroundColor: '#ef4444', color: '#fff', border: 'none' }}
+              size="sm"
+              variant="destructive"
             >
+              <XCircle className="mr-1 h-3.5 w-3.5" />
               Close Case
-            </button>
-            {/* FR-054.A3: Compliance audit unlock — only COMPLIANCE_OFFICER/SYS_ADMIN can export directly */}
+            </Button>
+            {/* FR-054.A3: Compliance audit unlock -- only COMPLIANCE_OFFICER/SYS_ADMIN can export directly */}
             {user?.roles?.some((r: string) => ['COMPLIANCE_OFFICER', 'SYS_ADMIN', 'DPO'].includes(r)) ? (
-              <button
-                style={{ ...styles.actionButton, backgroundColor: '#f0f9ff', borderColor: '#93c5fd' }}
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-blue-300 bg-blue-50 hover:bg-blue-100"
                 onClick={handleExportAuditTrail}
                 data-testid="btn-export-audit"
               >
+                <FileDown className="mr-1 h-3.5 w-3.5" />
                 Export Audit Trail
-              </button>
+              </Button>
             ) : (
-              <button
-                style={{ ...styles.actionButton, opacity: 0.6 }}
+              <Button
+                variant="outline"
+                size="sm"
+                className="opacity-60"
                 onClick={() => window.alert('Audit trail export requires Compliance Officer or DPO role.')}
                 data-testid="btn-export-audit-locked"
               >
+                <Lock className="mr-1 h-3.5 w-3.5" />
                 Export Audit Trail (Locked)
-              </button>
+              </Button>
             )}
           </div>
         </div>
-        <p style={styles.subject}>{caseData.subject}</p>
-        <div style={styles.slaRow}>
+        <p className="my-2 text-[0.95rem] text-slate-500">{caseData.subject}</p>
+        <div className="mt-3 max-w-[400px]">
           <SlaProgressBar remainingPercent={caseData.slaRemainingPercent} label="SLA Progress" />
         </div>
       </div>
 
       {/* Status Transition Modal */}
       {showStatusModal && !demo && (
-        <div style={styles.inlineForm}>
-          <h4 style={styles.inlineFormTitle}>Transition Status</h4>
-          <div style={styles.inlineFormFields}>
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value as CaseStatus)}
-              style={styles.formSelect}
-            >
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-              ))}
-            </select>
-            <input
-              type="text"
-              placeholder="Reason (optional)"
-              value={statusReason}
-              onChange={(e) => setStatusReason(e.target.value)}
-              style={styles.formInput}
-            />
-            <button
-              onClick={handleTransitionStatus}
-              disabled={transitionStatus.isPending}
-              style={{ ...styles.triageButton, backgroundColor: '#3b82f6', color: '#fff' }}
-            >
-              {transitionStatus.isPending ? 'Saving...' : 'Update Status'}
-            </button>
-            <button
-              onClick={() => setShowStatusModal(false)}
-              style={styles.triageButton}
-            >
-              Cancel
-            </button>
-          </div>
-          {transitionStatus.isError && (
-            <p style={styles.errorText}>
-              {transitionStatus.error instanceof Error
-                ? transitionStatus.error.message
-                : 'Failed to update status'}
-            </p>
-          )}
-        </div>
+        <Card className="mb-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[0.95rem]">Transition Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-start gap-3">
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value as CaseStatus)}
+                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+              <Input
+                type="text"
+                placeholder="Reason (optional)"
+                value={statusReason}
+                onChange={(e) => setStatusReason(e.target.value)}
+                className="min-w-[200px]"
+              />
+              <Button
+                onClick={handleTransitionStatus}
+                disabled={transitionStatus.isPending}
+                size="sm"
+              >
+                {transitionStatus.isPending ? 'Saving...' : 'Update Status'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowStatusModal(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+            {transitionStatus.isError && (
+              <p className="mt-2 text-sm text-destructive">
+                {transitionStatus.error instanceof Error
+                  ? transitionStatus.error.message
+                  : 'Failed to update status'}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Add Note Form */}
       {showNoteForm && !demo && (
-        <div style={styles.inlineForm}>
-          <h4 style={styles.inlineFormTitle}>Add Note</h4>
-          <div style={styles.inlineFormFields}>
-            <textarea
-              placeholder="Enter note..."
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              style={styles.formTextarea}
-              rows={3}
-            />
-            <button
-              onClick={handleAddNote}
-              disabled={addNote.isPending || !noteText.trim()}
-              style={{ ...styles.triageButton, backgroundColor: '#3b82f6', color: '#fff' }}
-            >
-              {addNote.isPending ? 'Saving...' : 'Save Note'}
-            </button>
-            <button
-              onClick={() => setShowNoteForm(false)}
-              style={styles.triageButton}
-            >
-              Cancel
-            </button>
-          </div>
-          {addNote.isError && (
-            <p style={styles.errorText}>
-              {addNote.error instanceof Error
-                ? addNote.error.message
-                : 'Failed to add note'}
-            </p>
-          )}
-        </div>
+        <Card className="mb-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[0.95rem]">Add Note</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-start gap-3">
+              <textarea
+                placeholder="Enter note..."
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 font-[inherit] text-sm"
+                rows={3}
+              />
+              <Button
+                onClick={handleAddNote}
+                disabled={addNote.isPending || !noteText.trim()}
+                size="sm"
+              >
+                {addNote.isPending ? 'Saving...' : 'Save Note'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowNoteForm(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+            {addNote.isError && (
+              <p className="mt-2 text-sm text-destructive">
+                {addNote.error instanceof Error
+                  ? addNote.error.message
+                  : 'Failed to add note'}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Correct Classification Form */}
       {showCorrectForm && !demo && (
-        <div style={styles.inlineForm}>
-          <h4 style={styles.inlineFormTitle}>Correct Classification</h4>
-          <div style={styles.inlineFormFields}>
-            <input
-              type="text"
-              placeholder="Category"
-              value={correctCategory}
-              onChange={(e) => setCorrectCategory(e.target.value)}
-              style={styles.formInput}
-            />
-            <input
-              type="text"
-              placeholder="Sub-Category"
-              value={correctSubCategory}
-              onChange={(e) => setCorrectSubCategory(e.target.value)}
-              style={styles.formInput}
-            />
-            <button
-              onClick={handleCorrectClassification}
-              disabled={correctTriage.isPending || !correctCategory}
-              style={{ ...styles.triageButton, backgroundColor: '#6366f1', color: '#fff' }}
-            >
-              {correctTriage.isPending ? 'Saving...' : 'Submit Correction'}
-            </button>
-            <button
-              onClick={() => setShowCorrectForm(false)}
-              style={styles.triageButton}
-            >
-              Cancel
-            </button>
-          </div>
-          {correctTriage.isError && (
-            <p style={styles.errorText}>
-              {correctTriage.error instanceof Error
-                ? correctTriage.error.message
-                : 'Failed to correct classification'}
-            </p>
-          )}
-        </div>
+        <Card className="mb-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[0.95rem]">Correct Classification</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-start gap-3">
+              <Input
+                type="text"
+                placeholder="Category"
+                value={correctCategory}
+                onChange={(e) => setCorrectCategory(e.target.value)}
+                className="min-w-[200px]"
+              />
+              <Input
+                type="text"
+                placeholder="Sub-Category"
+                value={correctSubCategory}
+                onChange={(e) => setCorrectSubCategory(e.target.value)}
+                className="min-w-[200px]"
+              />
+              <Button
+                onClick={handleCorrectClassification}
+                disabled={correctTriage.isPending || !correctCategory}
+                size="sm"
+                className="bg-indigo-500 text-white hover:bg-indigo-600"
+              >
+                {correctTriage.isPending ? 'Saving...' : 'Submit Correction'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCorrectForm(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+            {correctTriage.isError && (
+              <p className="mt-2 text-sm text-destructive">
+                {correctTriage.error instanceof Error
+                  ? correctTriage.error.message
+                  : 'Failed to correct classification'}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Pause SLA Form */}
       {showPauseForm && !demo && (
-        <div style={styles.inlineForm} data-testid="pause-sla-form">
-          <h4 style={styles.inlineFormTitle}>Pause SLA</h4>
-          <div style={styles.inlineFormFields}>
-            <input
-              type="text"
-              placeholder="Reason for pause..."
-              value={pauseReason}
-              onChange={(e) => setPauseReason(e.target.value)}
-              style={styles.formInput}
-            />
-            <button
-              onClick={handlePauseSla}
-              disabled={pauseSla.isPending || !pauseReason.trim()}
-              style={{ ...styles.triageButton, backgroundColor: '#ea580c', color: '#fff' }}
-            >
-              {pauseSla.isPending ? 'Pausing...' : 'Confirm Pause'}
-            </button>
-            <button
-              onClick={() => setShowPauseForm(false)}
-              style={styles.triageButton}
-            >
-              Cancel
-            </button>
-          </div>
-          {pauseSla.isError && (
-            <p style={styles.errorText}>
-              {pauseSla.error instanceof Error
-                ? pauseSla.error.message
-                : 'Failed to pause SLA'}
-            </p>
-          )}
-        </div>
+        <Card className="mb-4" data-testid="pause-sla-form">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[0.95rem]">Pause SLA</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-start gap-3">
+              <Input
+                type="text"
+                placeholder="Reason for pause..."
+                value={pauseReason}
+                onChange={(e) => setPauseReason(e.target.value)}
+                className="min-w-[200px]"
+              />
+              <Button
+                onClick={handlePauseSla}
+                disabled={pauseSla.isPending || !pauseReason.trim()}
+                size="sm"
+                className="bg-orange-600 text-white hover:bg-orange-700"
+              >
+                {pauseSla.isPending ? 'Pausing...' : 'Confirm Pause'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPauseForm(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+            {pauseSla.isError && (
+              <p className="mt-2 text-sm text-destructive">
+                {pauseSla.error instanceof Error
+                  ? pauseSla.error.message
+                  : 'Failed to pause SLA'}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Reassign Form */}
       {showReassignForm && !demo && (
-        <div style={styles.inlineForm} data-testid="reassign-form">
-          <h4 style={styles.inlineFormTitle}>Reassign Case</h4>
-          <div style={styles.inlineFormFields}>
-            <input
-              type="text"
-              placeholder="FPR ID or name..."
-              value={reassignFprId}
-              onChange={(e) => setReassignFprId(e.target.value)}
-              style={styles.formInput}
-            />
-            <button
-              onClick={handleReassign}
-              disabled={updateCase.isPending || !reassignFprId.trim()}
-              style={{ ...styles.triageButton, backgroundColor: '#3b82f6', color: '#fff' }}
-            >
-              {updateCase.isPending ? 'Reassigning...' : 'Confirm Reassign'}
-            </button>
-            <button
-              onClick={() => setShowReassignForm(false)}
-              style={styles.triageButton}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <Card className="mb-4" data-testid="reassign-form">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[0.95rem]">Reassign Case</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-start gap-3">
+              <Input
+                type="text"
+                placeholder="FPR ID or name..."
+                value={reassignFprId}
+                onChange={(e) => setReassignFprId(e.target.value)}
+                className="min-w-[200px]"
+              />
+              <Button
+                onClick={handleReassign}
+                disabled={updateCase.isPending || !reassignFprId.trim()}
+                size="sm"
+              >
+                {updateCase.isPending ? 'Reassigning...' : 'Confirm Reassign'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowReassignForm(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Set Priority Form */}
       {showPriorityForm && !demo && (
-        <div style={styles.inlineForm} data-testid="set-priority-form">
-          <h4 style={styles.inlineFormTitle}>Set Priority</h4>
-          <div style={styles.inlineFormFields}>
-            <select
-              value={newPriority}
-              onChange={(e) => setNewPriority(e.target.value)}
-              style={styles.formSelect}
-            >
-              <option value="P1">P1 - CRITICAL</option>
-              <option value="P2">P2 - HIGH</option>
-              <option value="P3">P3 - NORMAL</option>
-              <option value="P4">P4 - LOW</option>
-            </select>
-            <button
-              onClick={handleSetPriority}
-              disabled={updateCase.isPending}
-              style={{ ...styles.triageButton, backgroundColor: '#3b82f6', color: '#fff' }}
-            >
-              {updateCase.isPending ? 'Saving...' : 'Update Priority'}
-            </button>
-            <button
-              onClick={() => setShowPriorityForm(false)}
-              style={styles.triageButton}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <Card className="mb-4" data-testid="set-priority-form">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[0.95rem]">Set Priority</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-start gap-3">
+              <select
+                value={newPriority}
+                onChange={(e) => setNewPriority(e.target.value)}
+                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="P1">P1 - CRITICAL</option>
+                <option value="P2">P2 - HIGH</option>
+                <option value="P3">P3 - NORMAL</option>
+                <option value="P4">P4 - LOW</option>
+              </select>
+              <Button
+                onClick={handleSetPriority}
+                disabled={updateCase.isPending}
+                size="sm"
+              >
+                {updateCase.isPending ? 'Saving...' : 'Update Priority'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPriorityForm(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Tabs */}
-      <div style={styles.tabBar}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={activeTab === tab.id ? { ...styles.tab, ...styles.activeTab } : styles.tab}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="mb-6">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="activity">Activity Log</TabsTrigger>
+          <TabsTrigger value="linked">Linked Cases</TabsTrigger>
+          <TabsTrigger value="attachments">Attachments</TabsTrigger>
+          <TabsTrigger value="reply-drafts">Reply Drafts</TabsTrigger>
+        </TabsList>
 
-      {/* Tab Content */}
-      <div style={styles.tabContent}>
-        {activeTab === 'overview' && <OverviewTab caseData={caseData} />}
-        {activeTab === 'activity' && <ActivityTab />}
-        {activeTab === 'linked' && <LinkedCasesTab />}
-        {activeTab === 'attachments' && <AttachmentsTab onPreview={handlePreviewAttachment} />}
-        {activeTab === 'reply-drafts' && <ReplyDraftsTab caseId={caseId || '1'} />}
-      </div>
+        {/* Tab Content */}
+        <TabsContent value="overview" className="min-h-[300px]">
+          <OverviewTab caseData={caseData} />
+        </TabsContent>
+        <TabsContent value="activity" className="min-h-[300px]">
+          <ActivityTab />
+        </TabsContent>
+        <TabsContent value="linked" className="min-h-[300px]">
+          <LinkedCasesTab />
+        </TabsContent>
+        <TabsContent value="attachments" className="min-h-[300px]">
+          <AttachmentsTab onPreview={handlePreviewAttachment} />
+        </TabsContent>
+        <TabsContent value="reply-drafts" className="min-h-[300px]">
+          <ReplyDraftsTab caseId={caseId || '1'} />
+        </TabsContent>
+      </Tabs>
 
       {/* Keyboard Shortcuts Modal */}
       <KeyboardShortcutsModal
@@ -973,94 +1077,84 @@ const CaseDetailPage = () => {
       />
 
       {/* Attachment Preview Modal (FR-051.A3) */}
-      {previewAttachment && (
-        <div
-          style={styles.modalOverlay}
+      <Dialog open={!!previewAttachment} onOpenChange={(open) => { if (!open) setPreviewAttachment(null); }}>
+        <DialogContent
+          className="max-h-[90vh] max-w-3xl overflow-hidden"
           data-testid="attachment-preview-modal"
-          onClick={() => setPreviewAttachment(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Preview ${previewAttachment.name}`}
+          aria-label={previewAttachment ? `Preview ${previewAttachment.name}` : undefined}
         >
-          <div
-            style={styles.modalContent}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={styles.modalHeader}>
-              <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{previewAttachment.name}</span>
-              <button
-                onClick={() => setPreviewAttachment(null)}
-                style={styles.modalCloseButton}
-                data-testid="attachment-preview-close"
-                aria-label="Close preview"
-              >
-                X
-              </button>
-            </div>
-            <div style={styles.modalBody}>
-              {previewAttachment.mimeType === 'application/pdf' ? (
-                <iframe
-                  src={previewUrl || previewAttachment.downloadUrl || '#'}
-                  title={`Preview ${previewAttachment.name}`}
-                  style={{ width: '100%', height: '500px', border: 'none' }}
-                  data-testid="attachment-preview-pdf"
-                />
-              ) : previewAttachment.mimeType.startsWith('image/') ? (
-                <img
-                  src={previewUrl || previewAttachment.downloadUrl || '#'}
-                  alt={previewAttachment.name}
-                  style={{ maxWidth: '100%', maxHeight: '500px', objectFit: 'contain' }}
-                  data-testid="attachment-preview-image"
-                />
-              ) : (
-                <div data-testid="attachment-preview-download" style={{ textAlign: 'center', padding: '2rem' }}>
-                  <p style={{ color: '#64748b', marginBottom: '1rem' }}>Preview not available for this file type.</p>
-                  {(previewUrl || previewAttachment.downloadUrl) && (
-                    <a
-                      href={previewUrl || previewAttachment.downloadUrl}
-                      download={previewAttachment.name}
-                      style={{ color: 'var(--color-accent, #3b82f6)', fontWeight: 500 }}
-                    >
-                      Download {previewAttachment.name}
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold">
+              {previewAttachment?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto p-4">
+            {previewAttachment?.mimeType === 'application/pdf' ? (
+              <iframe
+                src={previewUrl || previewAttachment.downloadUrl || '#'}
+                title={`Preview ${previewAttachment.name}`}
+                className="h-[500px] w-full border-none"
+                data-testid="attachment-preview-pdf"
+              />
+            ) : previewAttachment?.mimeType.startsWith('image/') ? (
+              <img
+                src={previewUrl || previewAttachment.downloadUrl || '#'}
+                alt={previewAttachment.name}
+                className="max-h-[500px] max-w-full object-contain"
+                data-testid="attachment-preview-image"
+              />
+            ) : (
+              <div data-testid="attachment-preview-download" className="p-8 text-center">
+                <p className="mb-4 text-slate-500">Preview not available for this file type.</p>
+                {previewAttachment && (previewUrl || previewAttachment.downloadUrl) && (
+                  <a
+                    href={previewUrl || previewAttachment.downloadUrl}
+                    download={previewAttachment.name}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    <Download className="mr-1 inline h-4 w-4" />
+                    Download {previewAttachment.name}
+                  </a>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
         </div>{/* end center pane */}
 
-        {/* Right pane — activity timeline & linked cases */}
-        <aside style={styles.rightPane} data-testid="right-pane" aria-label="Activity timeline">
-          <h4 style={styles.paneTitle}>Activity Timeline</h4>
+        {/* Right pane -- activity timeline & linked cases */}
+        <aside className="w-1/4 max-w-[25%] shrink-0 overflow-y-auto border-l p-3" data-testid="right-pane" aria-label="Activity timeline">
+          <h4 className="mb-2 text-xs font-semibold uppercase text-slate-600">Activity Timeline</h4>
           {MOCK_ACTIVITY.slice(0, 5).map((event) => (
-            <div key={event.id} style={styles.rightPaneEvent}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.15rem' }}>
-                <strong style={{ fontSize: '0.7rem' }}>{event.action}</strong>
-                <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{event.timestamp}</span>
+            <div key={event.id} className="border-b py-2">
+              <div className="mb-0.5 flex justify-between">
+                <strong className="text-[0.7rem]">{event.action}</strong>
+                <span className="text-[0.65rem] text-slate-400">{event.timestamp}</span>
               </div>
-              <p style={{ margin: 0, fontSize: '0.7rem', color: '#64748b', lineHeight: 1.3 }}>{event.details}</p>
+              <p className="m-0 text-[0.7rem] leading-snug text-slate-500">{event.details}</p>
             </div>
           ))}
-          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0.5rem 0' }} />
-          <h4 style={styles.paneTitle}>Linked Cases</h4>
-          {MOCK_LINKED_CASES.map((linked) => (
+          <Separator className="my-2" />
+          <h4 className="mb-2 text-xs font-semibold uppercase text-slate-600">Linked Cases</h4>
+          {!demo && (
+            <p className="py-1 text-[0.7rem] text-slate-400">None</p>
+          )}
+          {demo && MOCK_LINKED_CASES.map((linked) => (
             <div
               key={linked.id}
-              style={styles.rightPaneEvent}
+              className="cursor-pointer border-b py-2"
               onClick={() => navigate(`/cases/${linked.id}`)}
               role="link"
               tabIndex={0}
               onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/cases/${linked.id}`); }}
             >
-              <strong style={{ fontSize: '0.75rem', color: 'var(--color-accent, #3b82f6)', cursor: 'pointer' }}>{linked.caseNumber}</strong>
-              <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block' }}>{linked.relationship}</span>
+              <strong className="cursor-pointer text-xs text-primary">{linked.caseNumber}</strong>
+              <span className="block text-[0.7rem] text-slate-500">{linked.relationship}</span>
             </div>
           ))}
-          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0.5rem 0' }} />
+          <Separator className="my-2" />
           <SuggestedActionsPanel caseId={caseId || '1'} />
         </aside>
       </div>{/* end three-pane container */}
@@ -1120,9 +1214,9 @@ function SuggestedActionsPanel({ caseId }: { caseId: string }) {
   };
 
   const getConfidenceColor = (confidence: number): string => {
-    if (confidence >= 0.9) return '#16a34a';
-    if (confidence >= 0.7) return '#ea580c';
-    return '#dc2626';
+    if (confidence >= 0.9) return 'bg-green-600';
+    if (confidence >= 0.7) return 'bg-orange-600';
+    return 'bg-red-600';
   };
 
   const getActionStatus = (actionId: string): 'accepted' | 'rejected' | 'pending' => {
@@ -1134,17 +1228,17 @@ function SuggestedActionsPanel({ caseId }: { caseId: string }) {
   if (loading) {
     return (
       <div data-testid="suggested-actions-panel">
-        <h4 style={styles.paneTitle}>Suggested Actions</h4>
-        <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Loading...</p>
+        <h4 className="mb-2 text-xs font-semibold uppercase text-slate-600">Suggested Actions</h4>
+        <p className="text-xs text-slate-400">Loading...</p>
       </div>
     );
   }
 
   return (
     <div data-testid="suggested-actions-panel">
-      <h4 style={styles.paneTitle}>Suggested Actions</h4>
+      <h4 className="mb-2 text-xs font-semibold uppercase text-slate-600">Suggested Actions</h4>
       {actions.length === 0 && (
-        <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>No actions suggested.</p>
+        <p className="text-xs text-slate-400">No actions suggested.</p>
       )}
       {actions.map((action) => {
         const status = getActionStatus(action.id);
@@ -1152,112 +1246,100 @@ function SuggestedActionsPanel({ caseId }: { caseId: string }) {
           <div
             key={action.id}
             data-testid={`suggested-action-${action.id}`}
-            style={{
-              padding: '0.5rem',
-              marginBottom: '0.5rem',
-              border: '1px solid var(--color-border)',
-              borderRadius: '6px',
-              backgroundColor: status === 'accepted' ? '#f0fdf4' : status === 'rejected' ? '#fef2f2' : 'var(--color-surface)',
-            }}
+            className={cn(
+              'mb-2 rounded-md border p-2',
+              status === 'accepted' && 'bg-green-50',
+              status === 'rejected' && 'bg-red-50',
+              status === 'pending' && 'bg-card',
+            )}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-              <strong style={{ fontSize: '0.75rem' }}>{action.action}</strong>
+            <div className="mb-1 flex items-center justify-between">
+              <strong className="text-xs">{action.action}</strong>
               <span
                 data-testid={`confidence-badge-${action.id}`}
-                style={{
-                  fontSize: '0.65rem',
-                  fontWeight: 600,
-                  padding: '0.1rem 0.4rem',
-                  borderRadius: '9999px',
-                  color: '#fff',
-                  backgroundColor: getConfidenceColor(action.confidence),
-                }}
+                className={cn(
+                  'rounded-full px-1.5 py-0.5 text-[0.65rem] font-semibold text-white',
+                  getConfidenceColor(action.confidence),
+                )}
               >
                 {(action.confidence * 100).toFixed(0)}%
               </span>
             </div>
-            <p style={{ margin: '0 0 0.35rem 0', fontSize: '0.7rem', color: '#64748b', lineHeight: 1.3 }}>
+            <p className="mb-1.5 text-[0.7rem] leading-snug text-slate-500">
               {action.description}
             </p>
 
             {/* FR-052.A2: Display recipient role and estimated TAT impact */}
             {action.recipientRole && (
-              <div data-testid={`recipient-role-${action.id}`} style={{ fontSize: '0.65rem', color: '#475569', marginBottom: '0.2rem' }}>
+              <div data-testid={`recipient-role-${action.id}`} className="mb-0.5 text-[0.65rem] text-slate-600">
                 <strong>Recipient:</strong> {action.recipientRole}
               </div>
             )}
             {action.estimatedTatImpactHours !== undefined && (
-              <div data-testid={`tat-impact-${action.id}`} style={{ fontSize: '0.65rem', color: '#475569', marginBottom: '0.35rem' }}>
+              <div data-testid={`tat-impact-${action.id}`} className="mb-1.5 text-[0.65rem] text-slate-600">
                 <strong>Est. TAT Impact:</strong> {action.estimatedTatImpactHours}h
               </div>
             )}
 
             {/* FR-052.A3: Accept/Edit/Reject buttons */}
-            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-              <button
+            <div className="flex items-center gap-1">
+              <Button
                 data-testid={`accept-action-${action.id}`}
                 onClick={() => handleAccept(action.id)}
                 disabled={status === 'accepted'}
-                style={{
-                  padding: '0.2rem 0.5rem',
-                  fontSize: '0.65rem',
-                  fontWeight: 600,
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: status === 'accepted' ? 'default' : 'pointer',
-                  backgroundColor: status === 'accepted' ? '#dcfce7' : '#16a34a',
-                  color: status === 'accepted' ? '#16a34a' : '#fff',
-                }}
+                size="sm"
+                className={cn(
+                  'h-auto px-2 py-0.5 text-[0.65rem] font-semibold',
+                  status === 'accepted'
+                    ? 'bg-green-100 text-green-600 hover:bg-green-100'
+                    : 'bg-green-600 text-white hover:bg-green-700',
+                )}
               >
                 {status === 'accepted' ? 'Accepted' : 'Accept'}
-              </button>
-              <button
+              </Button>
+              <Button
                 data-testid={`edit-action-${action.id}`}
                 onClick={() => handleEdit(action.id)}
                 disabled={status !== 'pending'}
-                style={{
-                  padding: '0.2rem 0.5rem',
-                  fontSize: '0.65rem',
-                  fontWeight: 600,
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '4px',
-                  cursor: status === 'pending' ? 'pointer' : 'default',
-                  backgroundColor: editingAction === action.id ? '#dbeafe' : 'var(--color-bg)',
-                  color: editingAction === action.id ? '#2563eb' : 'inherit',
-                }}
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'h-auto px-2 py-0.5 text-[0.65rem] font-semibold',
+                  editingAction === action.id && 'border-blue-200 bg-blue-100 text-blue-600',
+                )}
               >
                 Edit
-              </button>
-              <button
+              </Button>
+              <Button
                 data-testid={`reject-action-${action.id}`}
                 onClick={() => handleReject(action.id)}
                 disabled={status === 'rejected'}
-                style={{
-                  padding: '0.2rem 0.5rem',
-                  fontSize: '0.65rem',
-                  fontWeight: 600,
-                  border: status === 'rejected' ? 'none' : '1px solid #dc2626',
-                  borderRadius: '4px',
-                  cursor: status === 'rejected' ? 'default' : 'pointer',
-                  backgroundColor: status === 'rejected' ? '#fecaca' : '#fff',
-                  color: '#dc2626',
-                }}
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'h-auto px-2 py-0.5 text-[0.65rem] font-semibold text-red-600',
+                  status === 'rejected'
+                    ? 'border-none bg-red-200 hover:bg-red-200'
+                    : 'border-red-600 bg-white hover:bg-red-50',
+                )}
               >
                 {status === 'rejected' ? 'Rejected' : 'Reject'}
-              </button>
+              </Button>
             </div>
 
             {/* FR-052.A3: Edit mode panel */}
             {editingAction === action.id && (
-              <div data-testid={`edit-panel-${action.id}`} style={{ marginTop: '0.4rem', padding: '0.4rem', border: '1px dashed #93c5fd', borderRadius: '4px', backgroundColor: '#eff6ff' }}>
-                <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.65rem', color: '#1d4ed8' }}>Editing action parameters...</p>
-                <button
+              <div data-testid={`edit-panel-${action.id}`} className="mt-2 rounded border border-dashed border-blue-300 bg-blue-50 p-2">
+                <p className="mb-1 text-[0.65rem] text-blue-700">Editing action parameters...</p>
+                <Button
                   data-testid={`save-edit-${action.id}`}
                   onClick={() => handleAccept(action.id)}
-                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.65rem', fontWeight: 600, border: 'none', borderRadius: '4px', backgroundColor: '#2563eb', color: '#fff', cursor: 'pointer' }}
+                  size="sm"
+                  className="h-auto px-2 py-0.5 text-[0.65rem] font-semibold"
                 >
+                  <Save className="mr-1 h-3 w-3" />
                   Save &amp; Accept
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -1309,30 +1391,20 @@ function ReplyDraftsTab({ caseId }: { caseId: string }) {
     );
   };
 
-  const getStatusBadgeStyle = (status: ReplyDraftItem['status']): CSSProperties => {
-    const colorMap: Record<string, { bg: string; color: string }> = {
-      PROPOSED: { bg: '#fef3c7', color: '#d97706' },
-      APPROVED: { bg: '#dcfce7', color: '#16a34a' },
-      REJECTED: { bg: '#fecaca', color: '#dc2626' },
-      SENT: { bg: '#dbeafe', color: '#2563eb' },
+  const getStatusBadgeClasses = (status: ReplyDraftItem['status']): string => {
+    const classMap: Record<string, string> = {
+      PROPOSED: 'bg-amber-100 text-amber-600',
+      APPROVED: 'bg-green-100 text-green-600',
+      REJECTED: 'bg-red-100 text-red-600',
+      SENT: 'bg-blue-100 text-blue-600',
     };
-    const colors = colorMap[status] || colorMap.PROPOSED;
-    return {
-      display: 'inline-block',
-      padding: '0.15rem 0.5rem',
-      borderRadius: '9999px',
-      fontSize: '0.7rem',
-      fontWeight: 600,
-      backgroundColor: colors.bg,
-      color: colors.color,
-      textTransform: 'uppercase',
-    };
+    return classMap[status] || classMap.PROPOSED;
   };
 
   if (loading) {
     return (
       <div data-testid="reply-drafts-tab">
-        <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Loading drafts...</p>
+        <p className="text-sm text-slate-400">Loading drafts...</p>
       </div>
     );
   }
@@ -1340,97 +1412,68 @@ function ReplyDraftsTab({ caseId }: { caseId: string }) {
   return (
     <div data-testid="reply-drafts-tab">
       {drafts.length === 0 && (
-        <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>No reply drafts available.</p>
+        <p className="text-sm text-slate-400">No reply drafts available.</p>
       )}
       {drafts.map((draft) => (
-        <div
+        <Card
           key={draft.id}
           data-testid={`reply-draft-${draft.id}`}
-          style={{
-            border: '1px solid var(--color-border)',
-            borderRadius: '8px',
-            padding: '1rem',
-            marginBottom: '1rem',
-            backgroundColor: 'var(--color-surface)',
-          }}
+          className="mb-4"
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <strong style={{ fontSize: '0.9rem' }}>{draft.subject}</strong>
-            <span data-testid={`draft-status-${draft.id}`} style={getStatusBadgeStyle(draft.status)}>
-              {draft.status}
-            </span>
-          </div>
-          <pre style={{
-            fontSize: '0.8rem',
-            color: '#475569',
-            whiteSpace: 'pre-wrap',
-            margin: '0 0 0.75rem 0',
-            padding: '0.75rem',
-            backgroundColor: '#f8fafc',
-            borderRadius: '4px',
-            border: '1px solid var(--color-border)',
-            lineHeight: 1.5,
-          }}>
-            {draft.body}
-          </pre>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            {draft.status === 'PROPOSED' && (
-              <>
-                <button
-                  data-testid={`approve-draft-${draft.id}`}
-                  onClick={() => handleApprove(draft.id)}
-                  style={{
-                    padding: '0.35rem 0.75rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    backgroundColor: '#16a34a',
-                    color: '#fff',
-                  }}
-                >
-                  Approve
-                </button>
-                <button
-                  data-testid={`reject-draft-${draft.id}`}
-                  onClick={() => handleReject(draft.id)}
-                  style={{
-                    padding: '0.35rem 0.75rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    border: '1px solid #dc2626',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    backgroundColor: '#fff',
-                    color: '#dc2626',
-                  }}
-                >
-                  Reject
-                </button>
-                <button
-                  data-testid={`edit-draft-${draft.id}`}
-                  style={{
-                    padding: '0.35rem 0.75rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    backgroundColor: 'var(--color-bg)',
-                  }}
-                >
-                  Edit
-                </button>
-              </>
-            )}
-            {draft.approvedBy && (
-              <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                Approved by {draft.approvedBy}
-              </span>
-            )}
-          </div>
-        </div>
+          <CardContent className="p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <strong className="text-sm">{draft.subject}</strong>
+              <Badge
+                data-testid={`draft-status-${draft.id}`}
+                variant="secondary"
+                className={cn('rounded-full text-[0.7rem] font-semibold uppercase', getStatusBadgeClasses(draft.status))}
+              >
+                {draft.status}
+              </Badge>
+            </div>
+            <pre className="mb-3 whitespace-pre-wrap rounded border bg-slate-50 p-3 text-sm leading-relaxed text-slate-600">
+              {draft.body}
+            </pre>
+            <div className="flex items-center gap-2">
+              {draft.status === 'PROPOSED' && (
+                <>
+                  <Button
+                    data-testid={`approve-draft-${draft.id}`}
+                    onClick={() => handleApprove(draft.id)}
+                    size="sm"
+                    className="bg-green-600 text-white hover:bg-green-700"
+                  >
+                    <CheckCircle className="mr-1 h-3.5 w-3.5" />
+                    Approve
+                  </Button>
+                  <Button
+                    data-testid={`reject-draft-${draft.id}`}
+                    onClick={() => handleReject(draft.id)}
+                    size="sm"
+                    variant="outline"
+                    className="border-red-600 text-red-600 hover:bg-red-50"
+                  >
+                    <XCircle className="mr-1 h-3.5 w-3.5" />
+                    Reject
+                  </Button>
+                  <Button
+                    data-testid={`edit-draft-${draft.id}`}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <PenLine className="mr-1 h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                </>
+              )}
+              {draft.approvedBy && (
+                <span className="text-[0.7rem] text-slate-400">
+                  Approved by {draft.approvedBy}
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );
@@ -1451,268 +1494,285 @@ function OverviewTab({ caseData }: { caseData: CaseData }) {
   }, [caseData.routing_rationale]);
 
   return (
-    <div style={styles.overviewGrid}>
+    <div className="grid grid-cols-2 gap-5">
       {/* Classification Details */}
-      <div style={styles.panel}>
-        <h3 style={styles.panelTitle}>Classification</h3>
-        <div style={styles.detailGrid}>
-          <div style={styles.detailItem}>
-            <span style={styles.detailLabel}>Category</span>
-            <span style={styles.detailValue}>{caseData.classification.category}</span>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-[0.95rem]">Classification</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-0.5">
+              <Label className="text-[0.7rem] uppercase text-slate-400">Category</Label>
+              <span className="text-sm">{caseData.classification.category}</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <Label className="text-[0.7rem] uppercase text-slate-400">Sub-Category</Label>
+              <span className="text-sm">{caseData.classification.subCategory}</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <Label className="text-[0.7rem] uppercase text-slate-400">Confidence</Label>
+              <span className="text-sm">{(caseData.classification.confidence * 100).toFixed(0)}%</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <Label className="text-[0.7rem] uppercase text-slate-400">Confidence Band</Label>
+              <ConfidenceBadge band={caseData.classification.confidenceBand as ConfidenceBand} />
+            </div>
           </div>
-          <div style={styles.detailItem}>
-            <span style={styles.detailLabel}>Sub-Category</span>
-            <span style={styles.detailValue}>{caseData.classification.subCategory}</span>
-          </div>
-          <div style={styles.detailItem}>
-            <span style={styles.detailLabel}>Confidence</span>
-            <span style={styles.detailValue}>{(caseData.classification.confidence * 100).toFixed(0)}%</span>
-          </div>
-          <div style={styles.detailItem}>
-            <span style={styles.detailLabel}>Confidence Band</span>
-            <ConfidenceBadge band={caseData.classification.confidenceBand as ConfidenceBand} />
-          </div>
-        </div>
-        {/* FR-011.A4: Confidence conflict indicator when top-2 labels are within 10% */}
-        {(caseData.classification as any).confidenceScores && (() => {
-          const scores = Object.values((caseData.classification as any).confidenceScores).sort((a: any, b: any) => b - a);
-          if (scores.length >= 2 && (scores[0] as number) - (scores[1] as number) < 0.1) {
-            return (
-              <span data-testid="confidence-conflict-badge" style={{
-                background: '#fef3c7', color: '#92400e', padding: '2px 8px',
-                borderRadius: 4, fontSize: '0.75rem', fontWeight: 600, marginLeft: 8, display: 'inline-block', marginTop: '0.5rem'
-              }}>
-                ⚠ Classification Conflict
-              </span>
-            );
-          }
-          return null;
-        })()}
-      </div>
+          {/* FR-011.A4: Confidence conflict indicator when top-2 labels are within 10% */}
+          {(caseData.classification as any).confidenceScores && (() => {
+            const scores = Object.values((caseData.classification as any).confidenceScores).sort((a: any, b: any) => b - a);
+            if (scores.length >= 2 && (scores[0] as number) - (scores[1] as number) < 0.1) {
+              return (
+                <Badge
+                  data-testid="confidence-conflict-badge"
+                  variant="secondary"
+                  className="mt-2 bg-amber-100 text-sm font-semibold text-amber-800"
+                >
+                  <AlertTriangle className="mr-1 h-3.5 w-3.5" />
+                  Classification Conflict
+                </Badge>
+              );
+            }
+            return null;
+          })()}
+        </CardContent>
+      </Card>
 
       {/* Security Verdicts (FR-001.A4) */}
       {caseData.securityVerdicts && (
-        <div style={styles.panel} data-testid="security-verdicts">
-          <h3 style={styles.panelTitle}>Security Verdicts</h3>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            {(['spf', 'dkim', 'dmarc'] as const).map((protocol) => {
-              const verdict = caseData.securityVerdicts![protocol];
-              const isPass = verdict === 'PASS';
-              return (
-                <span
-                  key={protocol}
-                  data-testid={`verdict-${protocol}`}
-                  style={{
-                    display: 'inline-block',
-                    padding: '0.25rem 0.75rem',
-                    borderRadius: '9999px',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    backgroundColor: isPass ? '#dcfce7' : '#fecaca',
-                    color: isPass ? '#22c55e' : '#ef4444',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.025em',
-                  }}
-                >
-                  {protocol.toUpperCase()}: {verdict}
-                </span>
-              );
-            })}
-          </div>
-        </div>
+        <Card data-testid="security-verdicts">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-[0.95rem]">Security Verdicts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4">
+              {(['spf', 'dkim', 'dmarc'] as const).map((protocol) => {
+                const verdict = caseData.securityVerdicts![protocol];
+                const isPass = verdict === 'PASS';
+                return (
+                  <Badge
+                    key={protocol}
+                    data-testid={`verdict-${protocol}`}
+                    variant="secondary"
+                    className={cn(
+                      'rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide',
+                      isPass ? 'bg-green-100 text-green-500' : 'bg-red-100 text-red-500',
+                    )}
+                  >
+                    {isPass ? (
+                      <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                    ) : (
+                      <ShieldAlert className="mr-1 h-3.5 w-3.5" />
+                    )}
+                    {protocol.toUpperCase()}: {verdict}
+                  </Badge>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* NER Entities with conflict surfacing (FR-011.A4) */}
-      <div style={styles.panel}>
-        <h3 style={styles.panelTitle}>Extracted Entities (NER)</h3>
-        <table style={styles.entityTable}>
-          <thead>
-            <tr>
-              <th style={styles.entityTh}>Entity Type</th>
-              <th style={styles.entityTh}>Value</th>
-              <th style={styles.entityTh}>Source</th>
-            </tr>
-          </thead>
-          <tbody>
-            {caseData.entities.map((entity, idx) => (
-              <tr key={idx}>
-                <td style={styles.entityTd}>{entity.type}</td>
-                <td style={styles.entityTd}>
-                  <span
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', position: 'relative' }}
-                    onMouseEnter={() => setHoveredEntityIdx(idx)}
-                    onMouseLeave={() => setHoveredEntityIdx(null)}
-                    data-testid={`entity-badge-${idx}`}
-                  >
-                    {entity.value}
-                    {/* Confidence tooltip (FR-133.A2) */}
-                    {hoveredEntityIdx === idx && entity.confidence !== undefined && (
-                      <span
-                        data-testid={`entity-confidence-tooltip-${idx}`}
-                        style={{
-                          position: 'absolute',
-                          bottom: '100%',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          backgroundColor: '#1e293b',
-                          color: '#f8fafc',
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: '6px',
-                          fontSize: '0.75rem',
-                          whiteSpace: 'nowrap',
-                          zIndex: 10,
-                          marginBottom: '0.25rem',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                        }}
-                        role="tooltip"
-                      >
-                        <div>Type: {entity.type}</div>
-                        <div>Value: {entity.value}</div>
-                        <div>Confidence: {(entity.confidence * 100).toFixed(0)}%</div>
-                        <div>Validation: {entity.outcome || 'N/A'}</div>
-                      </span>
-                    )}
-                    {entity.outcome === 'FUZZY_MATCH' && (
-                      <span
-                        data-testid={`entity-conflict-${idx}`}
-                        style={{ cursor: 'pointer', color: '#f59e0b', fontSize: '1rem' }}
-                        title="Fuzzy match — click to see candidates"
-                        onClick={() => setExpandedEntityIdx(expandedEntityIdx === idx ? null : idx)}
-                      >
-                        {'\u26A0'}
-                      </span>
-                    )}
-                  </span>
-                  {entity.outcome === 'FUZZY_MATCH' && expandedEntityIdx === idx && entity.candidates && (
-                    <div
-                      data-testid={`entity-candidates-${idx}`}
-                      style={{
-                        marginTop: '0.5rem',
-                        padding: '0.5rem',
-                        backgroundColor: '#fffbeb',
-                        border: '1px solid #fde68a',
-                        borderRadius: '4px',
-                        fontSize: '0.8rem',
-                      }}
+      <Card className="col-span-2">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-[0.95rem]">Extracted Entities (NER)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs font-semibold uppercase text-slate-500">Entity Type</TableHead>
+                <TableHead className="text-xs font-semibold uppercase text-slate-500">Value</TableHead>
+                <TableHead className="text-xs font-semibold uppercase text-slate-500">Source</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {caseData.entities.map((entity, idx) => (
+                <TableRow key={idx}>
+                  <TableCell>{entity.type}</TableCell>
+                  <TableCell>
+                    <span
+                      className="relative inline-flex items-center gap-1.5"
+                      onMouseEnter={() => setHoveredEntityIdx(idx)}
+                      onMouseLeave={() => setHoveredEntityIdx(null)}
+                      data-testid={`entity-badge-${idx}`}
                     >
-                      <strong style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#92400e' }}>
-                        Candidate Values:
-                      </strong>
-                      <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1.25rem' }}>
-                        {entity.candidates.map((c, ci) => (
-                          <li key={ci} style={{ color: '#78350f', fontSize: '0.8rem' }}>{c}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </td>
-                <td style={styles.entityTd}>
-                  {entity.sourceText ? (
-                    <SourceSpanHighlight sourceLabel={`Source: ${entity.type}`}>
-                      {entity.sourceText}
-                    </SourceSpanHighlight>
-                  ) : (
-                    <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>--</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                      {entity.value}
+                      {/* Confidence tooltip (FR-133.A2) */}
+                      {hoveredEntityIdx === idx && entity.confidence !== undefined && (
+                        <span
+                          data-testid={`entity-confidence-tooltip-${idx}`}
+                          className="absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-800 px-3 py-2 text-xs text-slate-50 shadow-lg"
+                          role="tooltip"
+                        >
+                          <div>Type: {entity.type}</div>
+                          <div>Value: {entity.value}</div>
+                          <div>Confidence: {(entity.confidence * 100).toFixed(0)}%</div>
+                          <div>Validation: {entity.outcome || 'N/A'}</div>
+                        </span>
+                      )}
+                      {entity.outcome === 'FUZZY_MATCH' && (
+                        <span
+                          data-testid={`entity-conflict-${idx}`}
+                          className="cursor-pointer text-base text-amber-500"
+                          title="Fuzzy match -- click to see candidates"
+                          onClick={() => setExpandedEntityIdx(expandedEntityIdx === idx ? null : idx)}
+                        >
+                          <AlertTriangle className="h-4 w-4" />
+                        </span>
+                      )}
+                    </span>
+                    {entity.outcome === 'FUZZY_MATCH' && expandedEntityIdx === idx && entity.candidates && (
+                      <div
+                        data-testid={`entity-candidates-${idx}`}
+                        className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-sm"
+                      >
+                        <strong className="text-[0.7rem] uppercase text-amber-800">
+                          Candidate Values:
+                        </strong>
+                        <ul className="mt-1 pl-5">
+                          {entity.candidates.map((c, ci) => (
+                            <li key={ci} className="text-sm text-amber-900">{c}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {entity.sourceText ? (
+                      <SourceSpanHighlight sourceLabel={`Source: ${entity.type}`}>
+                        {entity.sourceText}
+                      </SourceSpanHighlight>
+                    ) : (
+                      <span className="text-sm text-slate-400">--</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Routing Rationale (FR-133.A3) */}
       {caseData.routing_rationale && (
-        <div style={{ ...styles.panel, gridColumn: '1 / -1' }} data-testid="routing-rationale">
-          <div
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-            onClick={() => setRoutingExpanded(!routingExpanded)}
-            data-testid="routing-rationale-toggle"
-          >
-            <h3 style={{ ...styles.panelTitle, margin: 0 }}>Routing Rationale</h3>
-            <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>
-              {routingExpanded ? '[-]' : '[+]'}
-            </span>
-          </div>
+        <Card className="col-span-2" data-testid="routing-rationale">
+          <CardHeader className="pb-0">
+            <div
+              className="flex cursor-pointer items-center justify-between"
+              onClick={() => setRoutingExpanded(!routingExpanded)}
+              data-testid="routing-rationale-toggle"
+            >
+              <CardTitle className="text-[0.95rem]">Routing Rationale</CardTitle>
+              {routingExpanded ? (
+                <ChevronUp className="h-4 w-4 text-slate-500" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-slate-500" />
+              )}
+            </div>
+          </CardHeader>
           {routingExpanded && (
-            <div style={{ marginTop: '0.75rem' }} data-testid="routing-rationale-content">
+            <CardContent data-testid="routing-rationale-content" className="pt-3">
               {routingBullets.length > 1 ? (
-                <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                <ul className="m-0 pl-6">
                   {routingBullets.map((bullet, i) => (
-                    <li key={i} style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '0.35rem', lineHeight: 1.5 }}>
+                    <li key={i} className="mb-1.5 text-sm leading-relaxed text-slate-600">
                       {bullet}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: 1.5 }}>
+                <p className="m-0 text-sm leading-relaxed text-slate-600">
                   {caseData.routing_rationale}
                 </p>
               )}
-            </div>
+            </CardContent>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Customer Info */}
-      <div style={styles.panel}>
-        <h3 style={styles.panelTitle}>Customer Information</h3>
-        <div style={styles.detailGrid}>
-          <div style={styles.detailItem}>
-            <span style={styles.detailLabel}>Name</span>
-            <span style={styles.detailValue}>{caseData.customer.name}</span>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-[0.95rem]">
+            <User className="mr-2 inline h-4 w-4" />
+            Customer Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-0.5">
+              <Label className="text-[0.7rem] uppercase text-slate-400">Name</Label>
+              <span className="text-sm">{caseData.customer.name}</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <Label className="text-[0.7rem] uppercase text-slate-400">Account #</Label>
+              <span className="text-sm">{caseData.customer.accountNumber}</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <Label className="text-[0.7rem] uppercase text-slate-400">Segment</Label>
+              <span className="text-sm">{caseData.customer.segment}</span>
+            </div>
           </div>
-          <div style={styles.detailItem}>
-            <span style={styles.detailLabel}>Account #</span>
-            <span style={styles.detailValue}>{caseData.customer.accountNumber}</span>
-          </div>
-          <div style={styles.detailItem}>
-            <span style={styles.detailLabel}>Segment</span>
-            <span style={styles.detailValue}>{caseData.customer.segment}</span>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Property Info */}
-      <div style={styles.panel}>
-        <h3 style={styles.panelTitle}>Property Information</h3>
-        <div style={styles.detailGrid}>
-          <div style={styles.detailItem}>
-            <span style={styles.detailLabel}>Address</span>
-            <span style={styles.detailValue}>{caseData.property.address}</span>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-[0.95rem]">
+            <MapPin className="mr-2 inline h-4 w-4" />
+            Property Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-0.5">
+              <Label className="text-[0.7rem] uppercase text-slate-400">Address</Label>
+              <span className="text-sm">{caseData.property.address}</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <Label className="text-[0.7rem] uppercase text-slate-400">Type</Label>
+              <span className="text-sm">{caseData.property.type}</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <Label className="text-[0.7rem] uppercase text-slate-400">State</Label>
+              <span className="text-sm">{caseData.property.state}</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <Label className="text-[0.7rem] uppercase text-slate-400">Valuation</Label>
+              <span className="text-sm">{caseData.property.valuationAmount}</span>
+            </div>
           </div>
-          <div style={styles.detailItem}>
-            <span style={styles.detailLabel}>Type</span>
-            <span style={styles.detailValue}>{caseData.property.type}</span>
-          </div>
-          <div style={styles.detailItem}>
-            <span style={styles.detailLabel}>State</span>
-            <span style={styles.detailValue}>{caseData.property.state}</span>
-          </div>
-          <div style={styles.detailItem}>
-            <span style={styles.detailLabel}>Valuation</span>
-            <span style={styles.detailValue}>{caseData.property.valuationAmount}</span>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Notes (live mode) */}
       {caseData.notes && caseData.notes.length > 0 && (
-        <div style={{ ...styles.panel, gridColumn: '1 / -1' }}>
-          <h3 style={styles.panelTitle}>Notes</h3>
-          {caseData.notes.map((note) => (
-            <div key={note.id} style={styles.noteItem}>
-              <div style={styles.noteMeta}>
-                <strong style={{ fontSize: '0.8rem' }}>{note.createdBy}</strong>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{note.createdAt}</span>
+        <Card className="col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-[0.95rem]">
+              <MessageSquare className="mr-2 inline h-4 w-4" />
+              Notes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {caseData.notes.map((note) => (
+              <div key={note.id} className="border-b py-3">
+                <div className="flex items-center justify-between">
+                  <strong className="text-sm">{note.createdBy}</strong>
+                  <span className="text-xs text-slate-400">{note.createdAt}</span>
+                </div>
+                <p className="mt-1 text-sm text-slate-600">{parseMentions(note.text)}</p>
               </div>
-              <p style={{ margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#475569' }}>{parseMentions(note.text)}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
-      {/* Field Visit Evidence Section — only for SITE_VISIT cases */}
+      {/* Field Visit Evidence Section -- only for SITE_VISIT cases */}
       {(caseData.type === 'SITE_VISIT' || caseData.type === 'Inspection') && (
         <FieldVisitEvidenceSection />
       )}
@@ -1722,21 +1782,21 @@ function OverviewTab({ caseData }: { caseData: CaseData }) {
 
 function ActivityTab() {
   return (
-    <div style={styles.timeline}>
+    <div className="flex flex-col gap-4 border-l-2 pl-6">
       {MOCK_ACTIVITY.map((event) => (
-        <div key={event.id} style={styles.timelineItem}>
-          <div style={styles.timelineDot} />
-          <div style={styles.timelineContent}>
-            <div style={styles.timelineHeader}>
-              <strong style={styles.timelineAction}>{event.action}</strong>
-              <span style={styles.timelineTime}>{event.timestamp}</span>
+        <div key={event.id} className="relative flex gap-3">
+          <div className="absolute -left-[1.85rem] top-[0.3rem] h-2.5 w-2.5 rounded-full bg-primary" />
+          <div className="flex-1">
+            <div className="mb-1 flex justify-between">
+              <strong className="text-sm">{event.action}</strong>
+              <span className="text-xs text-slate-400">{event.timestamp}</span>
             </div>
-            <p style={styles.timelineDetails}>{event.details}</p>
+            <p className="mb-1 text-[0.85rem] text-slate-500">{event.details}</p>
             {/* FR-004.A2: Show redline diff for Draft Edited events */}
             {event.action === 'Draft Edited' && event.previousBody && event.newBody && (
               <DraftDiff original={event.previousBody} edited={event.newBody} />
             )}
-            <span style={styles.timelineUser}>by {event.user}</span>
+            <span className="text-xs italic text-slate-400">by {event.user}</span>
           </div>
         </div>
       ))}
@@ -1745,29 +1805,32 @@ function ActivityTab() {
 }
 
 function LinkedCasesTab() {
+  const demo = isDemoMode();
+  const linkedCases = demo ? MOCK_LINKED_CASES : [];
+
   return (
     <div>
-      {MOCK_LINKED_CASES.length === 0 ? (
-        <p style={{ color: '#94a3b8' }}>No linked cases.</p>
+      {linkedCases.length === 0 ? (
+        <p className="text-slate-400">No linked cases.</p>
       ) : (
-        <table style={styles.entityTable}>
-          <thead>
-            <tr>
-              <th style={styles.entityTh}>Case #</th>
-              <th style={styles.entityTh}>Subject</th>
-              <th style={styles.entityTh}>Relationship</th>
-            </tr>
-          </thead>
-          <tbody>
-            {MOCK_LINKED_CASES.map((linked) => (
-              <tr key={linked.id}>
-                <td style={styles.entityTd}><strong>{linked.caseNumber}</strong></td>
-                <td style={styles.entityTd}>{linked.subject}</td>
-                <td style={styles.entityTd}>{linked.relationship}</td>
-              </tr>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-xs font-semibold uppercase text-slate-500">Case #</TableHead>
+              <TableHead className="text-xs font-semibold uppercase text-slate-500">Subject</TableHead>
+              <TableHead className="text-xs font-semibold uppercase text-slate-500">Relationship</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {linkedCases.map((linked) => (
+              <TableRow key={linked.id}>
+                <TableCell><strong>{linked.caseNumber}</strong></TableCell>
+                <TableCell>{linked.subject}</TableCell>
+                <TableCell>{linked.relationship}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
     </div>
   );
@@ -1779,86 +1842,90 @@ function AttachmentsTab({ onPreview }: { onPreview?: (att: Attachment) => void }
   return (
     <div>
       {MOCK_ATTACHMENTS.length === 0 ? (
-        <p style={{ color: '#94a3b8' }}>No attachments.</p>
+        <p className="text-slate-400">No attachments.</p>
       ) : (
-        <div style={{ display: 'flex', gap: '1.5rem' }}>
+        <div className="flex gap-6">
           {/* Attachment List */}
-          <div style={{ flex: '1 1 60%' }}>
-            <table style={styles.entityTable}>
-              <thead>
-                <tr>
-                  <th style={styles.entityTh}>File Name</th>
-                  <th style={styles.entityTh}>Type</th>
-                  <th style={styles.entityTh}>Size</th>
-                  <th style={styles.entityTh}>AV Status</th>
-                  <th style={styles.entityTh}>Doc Type</th>
-                  <th style={styles.entityTh}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="flex-[1_1_60%]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs font-semibold uppercase text-slate-500">File Name</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-slate-500">Type</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-slate-500">Size</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-slate-500">AV Status</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-slate-500">Doc Type</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-slate-500">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {MOCK_ATTACHMENTS.map((att) => (
-                  <tr
+                  <TableRow
                     key={att.id}
-                    style={{
-                      cursor: 'pointer',
-                      backgroundColor: selectedAttachment?.id === att.id ? '#f0f9ff' : 'transparent',
-                    }}
+                    className={cn(
+                      'cursor-pointer',
+                      selectedAttachment?.id === att.id && 'bg-blue-50',
+                    )}
                     onClick={() => setSelectedAttachment(att)}
                   >
-                    <td style={styles.entityTd}>
-                      <span style={{ fontWeight: 500 }}>{att.name}</span>
+                    <TableCell>
+                      <span className="font-medium">{att.name}</span>
                       <br />
-                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{att.mimeType}</span>
-                    </td>
-                    <td style={styles.entityTd}>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                      <span className="text-[0.7rem] text-slate-400">{att.mimeType}</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs text-slate-500">
                         {getMimeIcon(att.mimeType)}
                       </span>
-                    </td>
-                    <td style={styles.entityTd}>{att.size}</td>
-                    <td style={styles.entityTd}>
+                    </TableCell>
+                    <TableCell>{att.size}</TableCell>
+                    <TableCell>
                       <AvStatusBadge status={att.avStatus} />
-                    </td>
-                    <td style={styles.entityTd}>
+                    </TableCell>
+                    <TableCell>
                       {att.documentType ? (
                         <DocTypeBadge type={att.documentType} confidence={att.docTypeConfidence} />
                       ) : (
-                        <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>--</span>
+                        <span className="text-sm text-slate-400">--</span>
                       )}
-                    </td>
-                    <td style={styles.entityTd}>
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
                         {att.avStatus !== 'INFECTED' && att.downloadUrl ? (
                           <a
                             href={att.downloadUrl}
-                            style={{ color: 'var(--color-accent)', fontSize: '0.8rem', textDecoration: 'none' }}
+                            className="text-sm text-primary no-underline hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >
+                            <Download className="mr-1 inline h-3.5 w-3.5" />
                             Download
                           </a>
                         ) : att.avStatus === 'INFECTED' ? (
-                          <span style={{ color: '#dc2626', fontSize: '0.75rem', fontWeight: 600 }}>
+                          <Badge variant="destructive" className="text-xs font-semibold">
                             QUARANTINED
-                          </span>
+                          </Badge>
                         ) : (
-                          <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>--</span>
+                          <span className="text-sm text-slate-400">--</span>
                         )}
                         {att.avStatus !== 'INFECTED' && (
-                          <button
+                          <Button
                             onClick={(e) => { e.stopPropagation(); onPreview?.(att); }}
-                            style={{ border: '1px solid var(--color-border)', borderRadius: '4px', padding: '0.15rem 0.5rem', fontSize: '0.75rem', cursor: 'pointer', backgroundColor: 'var(--color-bg)' }}
+                            variant="outline"
+                            size="sm"
+                            className="h-auto px-2 py-0.5 text-xs"
                             data-testid={`preview-btn-${att.id}`}
                             aria-label={`Preview ${att.name}`}
                           >
+                            <Eye className="mr-1 h-3.5 w-3.5" />
                             Preview
-                          </button>
+                          </Button>
                         )}
                         {att.dms_external_id && (
                           <a
                             href={`${import.meta.env.VITE_DMS_BASE_URL || '#'}/documents/${att.dms_external_id}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ color: '#6366f1', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500 }}
+                            className="text-sm font-medium text-indigo-500 no-underline hover:underline"
                             onClick={(e) => e.stopPropagation()}
                             data-testid={`dms-link-${att.id}`}
                           >
@@ -1866,115 +1933,88 @@ function AttachmentsTab({ onPreview }: { onPreview?: (att: Attachment) => void }
                           </a>
                         )}
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
           {/* OCR Text Preview Panel */}
           {selectedAttachment && (
-            <div style={{ flex: '1 1 40%' }}>
-              <div style={styles.panel}>
-                <h3 style={styles.panelTitle}>
-                  OCR Text Preview: {selectedAttachment.name}
-                </h3>
-                {selectedAttachment.ocrText ? (
-                  <>
-                    {/* FR-021.A2: Word-level confidence display */}
-                    {selectedAttachment.wordConfidences && selectedAttachment.wordConfidences.length > 0 ? (
-                      <div
-                        data-testid="ocr-word-confidence"
-                        style={{
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          fontSize: '0.8rem',
-                          lineHeight: 1.8,
-                          backgroundColor: '#f8fafc',
-                          padding: '1rem',
-                          borderRadius: '6px',
-                          border: '1px solid var(--color-border)',
-                          maxHeight: '400px',
-                          overflowY: 'auto',
-                          margin: 0,
-                        }}
-                      >
-                        {selectedAttachment.wordConfidences.map((wc, idx) => (
-                          <span
-                            key={idx}
-                            title={`Confidence: ${(wc.confidence * 100).toFixed(0)}%`}
-                            style={{
-                              backgroundColor:
-                                wc.confidence >= 0.9 ? '#dcfce7'
-                                : wc.confidence >= 0.7 ? '#fef9c3'
-                                : '#fecaca',
-                              color:
-                                wc.confidence >= 0.9 ? '#16a34a'
-                                : wc.confidence >= 0.7 ? '#ca8a04'
-                                : '#dc2626',
-                              padding: '0.1rem 0.25rem',
-                              borderRadius: '3px',
-                              marginRight: '0.3rem',
-                              fontWeight: wc.confidence < 0.7 ? 700 : 400,
-                            }}
-                          >
-                            {wc.word}
-                          </span>
-                        ))}
-                        <div style={{ marginTop: '0.75rem', fontSize: '0.7rem', color: '#94a3b8' }}>
-                          <span style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '0.1rem 0.35rem', borderRadius: '3px', marginRight: '0.5rem' }}>High (&ge;90%)</span>
-                          <span style={{ backgroundColor: '#fef9c3', color: '#ca8a04', padding: '0.1rem 0.35rem', borderRadius: '3px', marginRight: '0.5rem' }}>Medium (&ge;70%)</span>
-                          <span style={{ backgroundColor: '#fecaca', color: '#dc2626', padding: '0.1rem 0.35rem', borderRadius: '3px' }}>Low (&lt;70%)</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <pre style={{
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
-                        fontSize: '0.8rem',
-                        lineHeight: 1.5,
-                        backgroundColor: '#f8fafc',
-                        padding: '1rem',
-                        borderRadius: '6px',
-                        border: '1px solid var(--color-border)',
-                        maxHeight: '400px',
-                        overflowY: 'auto',
-                        margin: 0,
-                      }}>
-                        {selectedAttachment.ocrText}
-                      </pre>
-                    )}
-                  </>
-                ) : (
-                  <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
-                    No OCR text available for this attachment.
-                  </p>
-                )}
-                <div style={{ marginTop: '0.75rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 600 }}>
-                      Uploaded
-                    </span>
-                    <br />
-                    <span style={{ fontSize: '0.8rem' }}>{selectedAttachment.uploadedAt}</span>
+            <div className="flex-[1_1_40%]">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-[0.95rem]">
+                    <FileText className="mr-2 inline h-4 w-4" />
+                    OCR Text Preview: {selectedAttachment.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {selectedAttachment.ocrText ? (
+                    <>
+                      {/* FR-021.A2: Word-level confidence display */}
+                      {selectedAttachment.wordConfidences && selectedAttachment.wordConfidences.length > 0 ? (
+                        <ScrollArea
+                          data-testid="ocr-word-confidence"
+                          className="max-h-[400px] whitespace-pre-wrap break-words rounded-md border bg-slate-50 p-4 text-sm leading-loose"
+                        >
+                          {selectedAttachment.wordConfidences.map((wc, idx) => (
+                            <span
+                              key={idx}
+                              title={`Confidence: ${(wc.confidence * 100).toFixed(0)}%`}
+                              className={cn(
+                                'mr-1 rounded px-1 py-0.5',
+                                wc.confidence >= 0.9 && 'bg-green-100 text-green-600',
+                                wc.confidence >= 0.7 && wc.confidence < 0.9 && 'bg-yellow-100 text-yellow-600',
+                                wc.confidence < 0.7 && 'bg-red-100 font-bold text-red-600',
+                              )}
+                            >
+                              {wc.word}
+                            </span>
+                          ))}
+                          <div className="mt-3 text-[0.7rem] text-slate-400">
+                            <span className="mr-2 rounded bg-green-100 px-1.5 py-0.5 text-green-600">High (&ge;90%)</span>
+                            <span className="mr-2 rounded bg-yellow-100 px-1.5 py-0.5 text-yellow-600">Medium (&ge;70%)</span>
+                            <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-600">Low (&lt;70%)</span>
+                          </div>
+                        </ScrollArea>
+                      ) : (
+                        <pre className="m-0 max-h-[400px] overflow-y-auto whitespace-pre-wrap break-words rounded-md border bg-slate-50 p-4 text-sm leading-relaxed">
+                          {selectedAttachment.ocrText}
+                        </pre>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-slate-400">
+                      No OCR text available for this attachment.
+                    </p>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-4">
+                    <div>
+                      <span className="text-[0.7rem] font-semibold uppercase text-slate-400">
+                        Uploaded
+                      </span>
+                      <br />
+                      <span className="text-sm">{selectedAttachment.uploadedAt}</span>
+                    </div>
+                    <div>
+                      <span className="text-[0.7rem] font-semibold uppercase text-slate-400">
+                        By
+                      </span>
+                      <br />
+                      <span className="text-sm">{selectedAttachment.uploadedBy}</span>
+                    </div>
+                    <div>
+                      <span className="text-[0.7rem] font-semibold uppercase text-slate-400">
+                        Size
+                      </span>
+                      <br />
+                      <span className="text-sm">{selectedAttachment.size}</span>
+                    </div>
                   </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 600 }}>
-                      By
-                    </span>
-                    <br />
-                    <span style={{ fontSize: '0.8rem' }}>{selectedAttachment.uploadedBy}</span>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 600 }}>
-                      Size
-                    </span>
-                    <br />
-                    <span style={{ fontSize: '0.8rem' }}>{selectedAttachment.size}</span>
-                  </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </div>
@@ -1985,25 +2025,17 @@ function AttachmentsTab({ onPreview }: { onPreview?: (att: Attachment) => void }
 
 /** AV scan status badge component */
 function AvStatusBadge({ status }: { status: string }) {
-  const colorMap: Record<string, { bg: string; fg: string }> = {
-    CLEAN: { bg: '#dcfce7', fg: '#16a34a' },
-    PENDING: { bg: '#fef9c3', fg: '#ca8a04' },
-    INFECTED: { bg: '#fecaca', fg: '#dc2626' },
-    ERROR: { bg: '#fed7aa', fg: '#ea580c' },
+  const classMap: Record<string, string> = {
+    CLEAN: 'bg-green-100 text-green-600',
+    PENDING: 'bg-yellow-100 text-yellow-600',
+    INFECTED: 'bg-red-100 text-red-600',
+    ERROR: 'bg-orange-100 text-orange-600',
   };
-  const colors = colorMap[status] || colorMap['PENDING'];
+  const classes = classMap[status] || classMap['PENDING'];
   return (
-    <span style={{
-      display: 'inline-block',
-      padding: '0.15rem 0.5rem',
-      borderRadius: '9999px',
-      fontSize: '0.7rem',
-      fontWeight: 600,
-      backgroundColor: colors.bg,
-      color: colors.fg,
-    }}>
+    <Badge variant="secondary" className={cn('rounded-full text-[0.7rem] font-semibold', classes)}>
       {status}
-    </span>
+    </Badge>
   );
 }
 
@@ -2011,22 +2043,14 @@ function AvStatusBadge({ status }: { status: string }) {
 function DocTypeBadge({ type, confidence }: { type: string; confidence?: number }) {
   const label = type.replace(/_/g, ' ');
   return (
-    <span style={{
-      display: 'inline-block',
-      padding: '0.15rem 0.5rem',
-      borderRadius: '4px',
-      fontSize: '0.7rem',
-      fontWeight: 600,
-      backgroundColor: '#e0e7ff',
-      color: '#4338ca',
-    }}>
+    <Badge variant="secondary" className="rounded bg-indigo-100 text-[0.7rem] font-semibold text-indigo-700">
       {label}
       {confidence !== undefined && (
-        <span style={{ marginLeft: '0.25rem', opacity: 0.7 }}>
+        <span className="ml-1 opacity-70">
           ({(confidence * 100).toFixed(0)}%)
         </span>
       )}
-    </span>
+    </Badge>
   );
 }
 
@@ -2067,587 +2091,104 @@ function FieldVisitEvidenceSection() {
   ];
 
   return (
-    <div style={{ ...fieldVisitStyles.container, gridColumn: '1 / -1' }}>
-      <h3 style={fieldVisitStyles.sectionTitle}>Field Visit Evidence</h3>
-
-      <div style={fieldVisitStyles.twoColumn}>
-        {/* Document Checklist */}
-        <div style={fieldVisitStyles.panel}>
-          <h4 style={fieldVisitStyles.panelTitle}>
-            Document Checklist ({submittedCount}/{requiredDocuments.length} — {completeness}%)
-          </h4>
-          <div style={fieldVisitStyles.progressBar}>
-            <div
-              style={{
-                ...fieldVisitStyles.progressFill,
-                width: `${completeness}%`,
-                backgroundColor: completeness === 100 ? '#16a34a' : completeness >= 60 ? '#ca8a04' : '#dc2626',
-              }}
-            />
-          </div>
-          <div style={fieldVisitStyles.checklistContainer}>
-            {requiredDocuments.map((doc) => (
-              <div key={doc.name} style={fieldVisitStyles.checklistItem}>
-                <span style={{
-                  ...fieldVisitStyles.checkIcon,
-                  color: doc.submitted ? '#16a34a' : '#dc2626',
-                }}>
-                  {doc.submitted ? '[Y]' : '[N]'}
-                </span>
-                <span style={{
-                  ...fieldVisitStyles.checkLabel,
-                  textDecoration: doc.submitted ? 'none' : 'none',
-                  color: doc.submitted ? 'inherit' : '#dc2626',
-                }}>
-                  {doc.name}
-                </span>
+    <Card className="col-span-2">
+      <CardHeader className="pb-2">
+        <CardTitle className="border-b-2 pb-3 text-lg font-bold">
+          <ClipboardList className="mr-2 inline h-5 w-5" />
+          Field Visit Evidence
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-5">
+          {/* Document Checklist */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">
+                Document Checklist ({submittedCount}/{requiredDocuments.length} -- {completeness}%)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-3 h-2 overflow-hidden rounded bg-slate-100">
+                <div
+                  className={cn(
+                    'h-full rounded transition-all duration-300',
+                    completeness === 100 ? 'bg-green-600' : completeness >= 60 ? 'bg-yellow-600' : 'bg-red-600',
+                  )}
+                  style={{ width: `${completeness}%` }}
+                />
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Photo Evidence and Inspector Notes */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {/* Photo Evidence Placeholder */}
-          <div style={fieldVisitStyles.panel}>
-            <h4 style={fieldVisitStyles.panelTitle}>Photo Evidence</h4>
-            <div style={fieldVisitStyles.photoGrid}>
-              {['North View', 'South View', 'East View', 'West View'].map((label) => (
-                <div key={label} style={fieldVisitStyles.photoPlaceholder}>
-                  <span style={fieldVisitStyles.photoIcon}>[IMG]</span>
-                  <span style={fieldVisitStyles.photoLabel}>{label}</span>
-                </div>
-              ))}
-            </div>
-            <p style={fieldVisitStyles.photoNote}>
-              Photos will appear here once the field inspector uploads them via the mobile app.
-            </p>
-          </div>
-
-          {/* Inspector Notes */}
-          <div style={fieldVisitStyles.panel}>
-            <h4 style={fieldVisitStyles.panelTitle}>Inspector Notes</h4>
-            <div style={fieldVisitStyles.notesList}>
-              {inspectorNotes.map((note, idx) => (
-                <div key={idx} style={fieldVisitStyles.noteItem}>
-                  <div style={fieldVisitStyles.noteMeta}>
-                    <strong style={{ fontSize: '0.8rem' }}>{note.inspector}</strong>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{note.date}</span>
+              <div className="flex flex-col gap-2">
+                {requiredDocuments.map((doc) => (
+                  <div key={doc.name} className="flex items-center gap-2 text-sm">
+                    {doc.submitted ? (
+                      <CheckCircle className="h-4 w-4 shrink-0 text-green-600" />
+                    ) : (
+                      <XCircle className="h-4 w-4 shrink-0 text-red-600" />
+                    )}
+                    <span className={cn(
+                      'text-sm',
+                      !doc.submitted && 'text-red-600',
+                    )}>
+                      {doc.name}
+                    </span>
                   </div>
-                  <p style={fieldVisitStyles.noteText}>{parseMentions(note.note)}</p>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Photo Evidence and Inspector Notes */}
+          <div className="flex flex-col gap-4">
+            {/* Photo Evidence Placeholder */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">
+                  <Camera className="mr-2 inline h-4 w-4" />
+                  Photo Evidence
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-2 grid grid-cols-2 gap-2">
+                  {['North View', 'South View', 'East View', 'West View'].map((label) => (
+                    <div key={label} className="flex flex-col items-center justify-center rounded-md border border-dashed bg-slate-50 px-2 py-6">
+                      <Image className="mb-1 h-6 w-6 text-slate-400" />
+                      <span className="text-[0.7rem] font-semibold text-slate-400">{label}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+                <p className="m-0 text-xs italic text-slate-400">
+                  Photos will appear here once the field inspector uploads them via the mobile app.
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Inspector Notes */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">
+                  <MessageSquare className="mr-2 inline h-4 w-4" />
+                  Inspector Notes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-2">
+                  {inspectorNotes.map((note, idx) => (
+                    <div key={idx} className="border-b py-2">
+                      <div className="mb-1 flex items-center justify-between">
+                        <strong className="text-sm">{note.inspector}</strong>
+                        <span className="text-[0.7rem] text-slate-400">{note.date}</span>
+                      </div>
+                      <p className="m-0 text-sm leading-snug text-slate-600">{parseMentions(note.note)}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
-
-const fieldVisitStyles: Record<string, CSSProperties> = {
-  container: {
-    marginTop: '1.25rem',
-    backgroundColor: 'var(--color-surface)',
-    border: '1px solid var(--color-border)',
-    borderRadius: '8px',
-    padding: '1.25rem',
-  },
-  sectionTitle: {
-    fontSize: '1.1rem',
-    fontWeight: 700,
-    margin: '0 0 1rem 0',
-    paddingBottom: '0.75rem',
-    borderBottom: '2px solid var(--color-border)',
-  },
-  twoColumn: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1.25rem',
-  },
-  panel: {
-    border: '1px solid var(--color-border)',
-    borderRadius: '6px',
-    padding: '1rem',
-  },
-  panelTitle: {
-    fontSize: '0.9rem',
-    fontWeight: 600,
-    margin: '0 0 0.75rem 0',
-  },
-  progressBar: {
-    height: '8px',
-    backgroundColor: '#f1f5f9',
-    borderRadius: '4px',
-    overflow: 'hidden',
-    marginBottom: '0.75rem',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: '4px',
-    transition: 'width 0.3s ease',
-  },
-  checklistContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem',
-  },
-  checklistItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    fontSize: '0.85rem',
-  },
-  checkIcon: {
-    fontWeight: 700,
-    fontSize: '0.8rem',
-    flexShrink: 0,
-  },
-  checkLabel: {
-    fontSize: '0.85rem',
-  },
-  photoGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '0.5rem',
-    marginBottom: '0.5rem',
-  },
-  photoPlaceholder: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '1.5rem 0.5rem',
-    border: '1px dashed var(--color-border)',
-    borderRadius: '6px',
-    backgroundColor: '#f8fafc',
-  },
-  photoIcon: {
-    fontSize: '1.5rem',
-    color: '#94a3b8',
-    marginBottom: '0.25rem',
-  },
-  photoLabel: {
-    fontSize: '0.7rem',
-    color: '#94a3b8',
-    fontWeight: 600,
-  },
-  photoNote: {
-    fontSize: '0.75rem',
-    color: '#94a3b8',
-    margin: 0,
-    fontStyle: 'italic',
-  },
-  notesList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem',
-  },
-  noteItem: {
-    padding: '0.5rem 0',
-    borderBottom: '1px solid var(--color-border)',
-  },
-  noteMeta: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '0.25rem',
-  },
-  noteText: {
-    margin: 0,
-    fontSize: '0.8rem',
-    color: '#475569',
-    lineHeight: 1.4,
-  },
-};
-
-const styles: Record<string, CSSProperties> = {
-  header: {
-    marginBottom: '1.5rem',
-  },
-  backButton: {
-    background: 'none',
-    border: 'none',
-    color: 'var(--color-accent)',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    padding: '0.25rem 0',
-    marginBottom: '0.75rem',
-  },
-  headerMain: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: '0.75rem',
-  },
-  headerLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-  },
-  caseNumber: {
-    margin: 0,
-    fontSize: '1.5rem',
-    fontWeight: 700,
-  },
-  headerActions: {
-    display: 'flex',
-    gap: '0.5rem',
-    flexWrap: 'wrap',
-  },
-  actionButton: {
-    padding: '0.5rem 1rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '6px',
-    backgroundColor: 'var(--color-bg)',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-    fontWeight: 500,
-  },
-  subject: {
-    margin: '0.5rem 0',
-    fontSize: '0.95rem',
-    color: '#64748b',
-  },
-  slaRow: {
-    maxWidth: '400px',
-    marginTop: '0.75rem',
-  },
-  tabBar: {
-    display: 'flex',
-    borderBottom: '2px solid var(--color-border)',
-    marginBottom: '1.5rem',
-    gap: '0',
-  },
-  tab: {
-    padding: '0.75rem 1.25rem',
-    background: 'none',
-    border: 'none',
-    borderBottom: '2px solid transparent',
-    marginBottom: '-2px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: 500,
-    color: '#64748b',
-  },
-  activeTab: {
-    borderBottomColor: 'var(--color-accent)',
-    color: 'var(--color-accent)',
-    fontWeight: 600,
-  },
-  tabContent: {
-    minHeight: '300px',
-  },
-  overviewGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1.25rem',
-  },
-  panel: {
-    backgroundColor: 'var(--color-surface)',
-    border: '1px solid var(--color-border)',
-    borderRadius: '8px',
-    padding: '1.25rem',
-  },
-  panelTitle: {
-    fontSize: '0.95rem',
-    fontWeight: 600,
-    margin: '0 0 1rem 0',
-  },
-  detailGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '0.75rem',
-  },
-  detailItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.2rem',
-  },
-  detailLabel: {
-    fontSize: '0.7rem',
-    textTransform: 'uppercase',
-    color: '#94a3b8',
-    fontWeight: 600,
-  },
-  detailValue: {
-    fontSize: '0.875rem',
-  },
-  entityTable: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    fontSize: '0.875rem',
-  },
-  entityTh: {
-    textAlign: 'left',
-    padding: '0.5rem 0.75rem',
-    borderBottom: '1px solid var(--color-border)',
-    fontSize: '0.75rem',
-    textTransform: 'uppercase',
-    color: '#64748b',
-    fontWeight: 600,
-  },
-  entityTd: {
-    padding: '0.5rem 0.75rem',
-    borderBottom: '1px solid var(--color-border)',
-  },
-  timeline: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-    paddingLeft: '1.5rem',
-    borderLeft: '2px solid var(--color-border)',
-  },
-  timelineItem: {
-    display: 'flex',
-    gap: '0.75rem',
-    position: 'relative',
-  },
-  timelineDot: {
-    width: '10px',
-    height: '10px',
-    borderRadius: '50%',
-    backgroundColor: 'var(--color-accent)',
-    position: 'absolute',
-    left: '-1.85rem',
-    top: '0.3rem',
-  },
-  timelineContent: {
-    flex: 1,
-  },
-  timelineHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: '0.25rem',
-  },
-  timelineAction: {
-    fontSize: '0.875rem',
-  },
-  timelineTime: {
-    fontSize: '0.75rem',
-    color: '#94a3b8',
-  },
-  timelineDetails: {
-    margin: '0 0 0.25rem 0',
-    fontSize: '0.85rem',
-    color: '#64748b',
-  },
-  timelineUser: {
-    fontSize: '0.75rem',
-    color: '#94a3b8',
-    fontStyle: 'italic',
-  },
-  placeholder: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '4rem 2rem',
-    border: '1px dashed var(--color-border)',
-    borderRadius: '8px',
-    backgroundColor: 'var(--color-surface)',
-    textAlign: 'center',
-  },
-  placeholderIcon: {
-    fontSize: '2.5rem',
-    marginBottom: '0.75rem',
-    opacity: 0.5,
-  },
-  placeholderTitle: {
-    margin: '0 0 0.5rem 0',
-    fontSize: '1.1rem',
-    fontWeight: 600,
-    color: '#475569',
-  },
-  placeholderText: {
-    margin: 0,
-    fontSize: '0.875rem',
-    color: '#94a3b8',
-    maxWidth: '480px',
-    lineHeight: 1.5,
-  },
-  code: {
-    backgroundColor: '#f1f5f9',
-    padding: '0.15rem 0.4rem',
-    borderRadius: '4px',
-    fontSize: '0.8rem',
-    fontFamily: 'monospace',
-  },
-  spinner: {
-    width: '32px',
-    height: '32px',
-    border: '3px solid var(--color-border)',
-    borderTop: '3px solid var(--color-accent, #3b82f6)',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
-    marginBottom: '1rem',
-  },
-  inlineForm: {
-    backgroundColor: 'var(--color-surface)',
-    border: '1px solid var(--color-border)',
-    borderRadius: '8px',
-    padding: '1rem',
-    marginBottom: '1rem',
-  },
-  inlineFormTitle: {
-    margin: '0 0 0.75rem 0',
-    fontSize: '0.95rem',
-    fontWeight: 600,
-  },
-  inlineFormFields: {
-    display: 'flex',
-    gap: '0.75rem',
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
-  },
-  formSelect: {
-    padding: '0.5rem 0.75rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '6px',
-    fontSize: '0.85rem',
-    backgroundColor: 'var(--color-bg)',
-  },
-  formInput: {
-    padding: '0.5rem 0.75rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '6px',
-    fontSize: '0.85rem',
-    minWidth: '200px',
-  },
-  formTextarea: {
-    padding: '0.5rem 0.75rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '6px',
-    fontSize: '0.85rem',
-    width: '100%',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-  },
-  triageButton: {
-    padding: '0.5rem 1rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '6px',
-    fontSize: '0.8rem',
-    fontWeight: 600,
-    cursor: 'pointer',
-    backgroundColor: 'var(--color-bg)',
-  },
-  errorText: {
-    color: '#dc2626',
-    fontSize: '0.8rem',
-    marginTop: '0.5rem',
-  },
-  noteItem: {
-    padding: '0.75rem 0',
-    borderBottom: '1px solid var(--color-border)',
-  },
-  noteMeta: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  threePaneContainer: {
-    display: 'flex',
-    gap: '0',
-    minHeight: '600px',
-  },
-  leftPane: {
-    flex: '0 0 25%',
-    maxWidth: '25%',
-    borderRight: '1px solid var(--color-border)',
-    padding: '0.75rem',
-    overflowY: 'auto',
-  },
-  centerPane: {
-    flex: '0 0 50%',
-    maxWidth: '50%',
-    padding: '0 1rem',
-    overflowY: 'auto',
-  },
-  rightPane: {
-    flex: '0 0 25%',
-    maxWidth: '25%',
-    borderLeft: '1px solid var(--color-border)',
-    padding: '0.75rem',
-    overflowY: 'auto',
-  },
-  paneTitle: {
-    fontSize: '0.8rem',
-    fontWeight: 600,
-    margin: '0 0 0.5rem 0',
-    color: '#475569',
-    textTransform: 'uppercase',
-  },
-  sidebarItem: {
-    padding: '0.5rem',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    marginBottom: '0.35rem',
-    transition: 'background-color 0.15s',
-  },
-  rightPaneEvent: {
-    padding: '0.5rem 0',
-    borderBottom: '1px solid var(--color-border)',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  },
-  modalContent: {
-    backgroundColor: 'var(--color-surface, #fff)',
-    borderRadius: '8px',
-    width: '80%',
-    maxWidth: '800px',
-    maxHeight: '90vh',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '1rem',
-    borderBottom: '1px solid var(--color-border)',
-  },
-  modalCloseButton: {
-    background: 'none',
-    border: '1px solid var(--color-border)',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    padding: '0.25rem 0.5rem',
-    fontSize: '0.8rem',
-    fontWeight: 600,
-  },
-  modalBody: {
-    padding: '1rem',
-    overflowY: 'auto',
-    flex: 1,
-  },
-  confidenceTooltip: {
-    position: 'absolute',
-    bottom: '100%',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    backgroundColor: '#1e293b',
-    color: '#f8fafc',
-    padding: '0.5rem 0.75rem',
-    borderRadius: '6px',
-    fontSize: '0.75rem',
-    whiteSpace: 'nowrap',
-    zIndex: 10,
-    marginBottom: '0.25rem',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-  },
-};
 
 export default CaseDetailPage;

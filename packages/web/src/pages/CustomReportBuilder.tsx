@@ -1,6 +1,28 @@
-import { useState, useCallback, type CSSProperties, type DragEvent } from 'react';
+import { useState, useCallback, type DragEvent } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiGet, apiPost } from '../api/client';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
+import { BarChart3, Loader2, Save, Clock, X } from 'lucide-react';
 
 interface ReportSchema {
   name: string;
@@ -268,387 +290,267 @@ const CustomReportBuilder = () => {
     : [];
 
   return (
-    <div style={styles.container} data-testid="custom-report-builder">
-      <h2 style={styles.heading}>Custom Report Builder</h2>
+    <div data-testid="custom-report-builder">
+      <h2 className="mb-6 text-2xl font-bold">Custom Report Builder</h2>
 
       {/* Report Configuration */}
-      <div style={styles.panel}>
-        <h3 style={styles.panelTitle}>Report Configuration</h3>
-
-        {/* Report Name */}
-        <div style={styles.formGroup}>
-          <label style={styles.label} htmlFor="report-name">Report Name</label>
-          <input
-            id="report-name"
-            data-testid="report-name-input"
-            type="text"
-            value={reportName}
-            onChange={(e) => setReportName(e.target.value)}
-            placeholder="Enter report name..."
-            style={styles.input}
-          />
-        </div>
-
-        {/* Dimensions — draggable source cards */}
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Dimensions <span style={{ fontWeight: 400, fontSize: '0.75rem', color: '#94a3b8' }}>(click or drag)</span></label>
-          <div style={styles.chipContainer} data-testid="dimension-selector">
-            {availableDimensions.map((dim) => (
-              <button
-                key={dim}
-                data-testid={`dim-${dim}`}
-                draggable
-                onDragStart={handleDragStart(dim, 'dimension')}
-                onClick={() => toggleDimension(dim)}
-                style={{
-                  ...styles.chip,
-                  cursor: 'grab',
-                  backgroundColor: selectedDimensions.includes(dim)
-                    ? 'var(--color-accent, #3b82f6)'
-                    : 'var(--color-surface)',
-                  color: selectedDimensions.includes(dim)
-                    ? '#fff'
-                    : 'var(--color-text)',
-                  border: selectedDimensions.includes(dim)
-                    ? '1px solid transparent'
-                    : '1px solid var(--color-border)',
-                }}
-              >
-                {dim}
-              </button>
-            ))}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-base">Report Configuration</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Report Name */}
+          <div className="space-y-2">
+            <Label htmlFor="report-name">Report Name</Label>
+            <Input
+              id="report-name"
+              data-testid="report-name-input"
+              type="text"
+              value={reportName}
+              onChange={(e) => setReportName(e.target.value)}
+              placeholder="Enter report name..."
+            />
           </div>
-        </div>
 
-        {/* Dimensions drop zone */}
-        <div
-          data-testid="dimension-drop-zone"
-          onDragOver={handleDragOver}
-          onDrop={handleDropOnDimensions}
-          onDragEnter={handleDimDragEnter}
-          onDragLeave={handleDimDragLeave}
-          style={{
-            ...styles.dropZone,
-            borderColor: dimDropHighlight ? '#3b82f6' : '#d1d5db',
-            backgroundColor: dimDropHighlight ? '#eff6ff' : '#f9fafb',
-          }}
-        >
-          {selectedDimensions.length === 0
-            ? 'Drop dimensions here'
-            : selectedDimensions.map((d) => (
-                <span key={d} style={styles.selectedTag}>
-                  {d}
-                  <button
-                    aria-label={`Remove ${d}`}
-                    onClick={() => toggleDimension(d)}
-                    style={styles.removeTagBtn}
-                  >
-                    x
-                  </button>
-                </span>
+          {/* Dimensions -- draggable source cards */}
+          <div className="space-y-2">
+            <Label>
+              Dimensions{' '}
+              <span className="font-normal text-xs text-muted-foreground">(click or drag)</span>
+            </Label>
+            <div className="flex flex-wrap gap-2" data-testid="dimension-selector">
+              {availableDimensions.map((dim) => (
+                <Badge
+                  key={dim}
+                  data-testid={`dim-${dim}`}
+                  draggable
+                  onDragStart={handleDragStart(dim, 'dimension')}
+                  onClick={() => toggleDimension(dim)}
+                  variant={selectedDimensions.includes(dim) ? 'default' : 'outline'}
+                  className="cursor-grab select-none"
+                >
+                  {dim}
+                </Badge>
               ))}
-        </div>
-
-        {/* Measures — draggable source cards */}
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Measures <span style={{ fontWeight: 400, fontSize: '0.75rem', color: '#94a3b8' }}>(click or drag)</span></label>
-          <div style={styles.chipContainer} data-testid="measure-selector">
-            {availableMeasures.map((measure) => (
-              <button
-                key={measure}
-                data-testid={`measure-${measure}`}
-                draggable
-                onDragStart={handleDragStart(measure, 'measure')}
-                onClick={() => toggleMeasure(measure)}
-                style={{
-                  ...styles.chip,
-                  cursor: 'grab',
-                  backgroundColor: selectedMeasures.includes(measure)
-                    ? 'var(--color-accent, #3b82f6)'
-                    : 'var(--color-surface)',
-                  color: selectedMeasures.includes(measure)
-                    ? '#fff'
-                    : 'var(--color-text)',
-                  border: selectedMeasures.includes(measure)
-                    ? '1px solid transparent'
-                    : '1px solid var(--color-border)',
-                }}
-              >
-                {measure}
-              </button>
-            ))}
+            </div>
           </div>
-        </div>
 
-        {/* Measures drop zone */}
-        <div
-          data-testid="measure-drop-zone"
-          onDragOver={handleDragOver}
-          onDrop={handleDropOnMeasures}
-          onDragEnter={handleMeasureDragEnter}
-          onDragLeave={handleMeasureDragLeave}
-          style={{
-            ...styles.dropZone,
-            borderColor: measureDropHighlight ? '#3b82f6' : '#d1d5db',
-            backgroundColor: measureDropHighlight ? '#eff6ff' : '#f9fafb',
-          }}
-        >
-          {selectedMeasures.length === 0
-            ? 'Drop measures here'
-            : selectedMeasures.map((m) => (
-                <span key={m} style={styles.selectedTag}>
-                  {m}
-                  <button
-                    aria-label={`Remove ${m}`}
-                    onClick={() => toggleMeasure(m)}
-                    style={styles.removeTagBtn}
-                  >
-                    x
-                  </button>
-                </span>
-              ))}
-        </div>
-
-        {/* Error */}
-        {error && (
-          <p style={styles.errorText} data-testid="report-error">{error}</p>
-        )}
-
-        {/* Generate Button */}
-        <button
-          data-testid="generate-report-btn"
-          onClick={handleGenerate}
-          disabled={generateMutation.isPending}
-          style={styles.generateBtn}
-        >
-          {generateMutation.isPending ? 'Generating...' : 'Generate Report'}
-        </button>
-
-        {/* FR-113.A2: Save, Load & Schedule controls */}
-        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button
-            data-testid="save-report-btn"
-            onClick={handleSaveReport}
-            style={{ ...styles.generateBtn, backgroundColor: '#16a34a' }}
+          {/* Dimensions drop zone */}
+          <div
+            data-testid="dimension-drop-zone"
+            onDragOver={handleDragOver}
+            onDrop={handleDropOnDimensions}
+            onDragEnter={handleDimDragEnter}
+            onDragLeave={handleDimDragLeave}
+            className={cn(
+              'min-h-12 rounded-lg border-2 border-dashed px-3 py-2 flex flex-wrap gap-1.5 items-center text-sm text-muted-foreground transition-colors',
+              dimDropHighlight
+                ? 'border-primary bg-primary/5'
+                : 'border-border bg-muted/30',
+            )}
           >
-            Save Report
-          </button>
+            {selectedDimensions.length === 0
+              ? 'Drop dimensions here'
+              : selectedDimensions.map((d) => (
+                  <Badge
+                    key={d}
+                    variant="secondary"
+                    className="inline-flex items-center gap-1 bg-blue-100 text-blue-700"
+                  >
+                    {d}
+                    <button
+                      aria-label={`Remove ${d}`}
+                      onClick={() => toggleDimension(d)}
+                      className="ml-0.5 hover:text-blue-900"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+          </div>
 
-          {savedReports.length > 0 && (
-            <select
-              data-testid="saved-reports-dropdown"
-              onChange={(e) => handleLoadSavedReport(e.target.value)}
-              defaultValue=""
-              style={styles.input as CSSProperties}
-            >
-              <option value="" disabled>Saved Reports...</option>
-              {savedReports.map((r) => (
-                <option key={r.id} value={r.id}>{r.name}</option>
+          {/* Measures -- draggable source cards */}
+          <div className="space-y-2">
+            <Label>
+              Measures{' '}
+              <span className="font-normal text-xs text-muted-foreground">(click or drag)</span>
+            </Label>
+            <div className="flex flex-wrap gap-2" data-testid="measure-selector">
+              {availableMeasures.map((measure) => (
+                <Badge
+                  key={measure}
+                  data-testid={`measure-${measure}`}
+                  draggable
+                  onDragStart={handleDragStart(measure, 'measure')}
+                  onClick={() => toggleMeasure(measure)}
+                  variant={selectedMeasures.includes(measure) ? 'default' : 'outline'}
+                  className="cursor-grab select-none"
+                >
+                  {measure}
+                </Badge>
               ))}
-            </select>
+            </div>
+          </div>
+
+          {/* Measures drop zone */}
+          <div
+            data-testid="measure-drop-zone"
+            onDragOver={handleDragOver}
+            onDrop={handleDropOnMeasures}
+            onDragEnter={handleMeasureDragEnter}
+            onDragLeave={handleMeasureDragLeave}
+            className={cn(
+              'min-h-12 rounded-lg border-2 border-dashed px-3 py-2 flex flex-wrap gap-1.5 items-center text-sm text-muted-foreground transition-colors',
+              measureDropHighlight
+                ? 'border-primary bg-primary/5'
+                : 'border-border bg-muted/30',
+            )}
+          >
+            {selectedMeasures.length === 0
+              ? 'Drop measures here'
+              : selectedMeasures.map((m) => (
+                  <Badge
+                    key={m}
+                    variant="secondary"
+                    className="inline-flex items-center gap-1 bg-blue-100 text-blue-700"
+                  >
+                    {m}
+                    <button
+                      aria-label={`Remove ${m}`}
+                      onClick={() => toggleMeasure(m)}
+                      className="ml-0.5 hover:text-blue-900"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+          </div>
+
+          {/* Error */}
+          {error && (
+            <p className="text-sm text-destructive" data-testid="report-error">{error}</p>
           )}
 
-          <select
-            data-testid="schedule-frequency"
-            value={scheduleFrequency}
-            onChange={(e) => setScheduleFrequency(e.target.value as 'daily' | 'weekly' | 'monthly')}
-            style={{ ...styles.input as CSSProperties, width: 'auto' }}
+          {/* Generate Button */}
+          <Button
+            data-testid="generate-report-btn"
+            onClick={handleGenerate}
+            disabled={generateMutation.isPending}
           >
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
-          <button
-            data-testid="schedule-report-btn"
-            onClick={handleScheduleReport}
-            style={{ ...styles.generateBtn, backgroundColor: '#6366f1' }}
-          >
-            Schedule Report
-          </button>
-        </div>
-        {scheduleMessage && (
-          <p style={{ color: '#16a34a', fontSize: '0.85rem', margin: '0.5rem 0' }} data-testid="schedule-confirmation">
-            {scheduleMessage}
-          </p>
-        )}
-      </div>
+            {generateMutation.isPending ? (
+              <>
+                <Loader2 className="animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <BarChart3 />
+                Generate Report
+              </>
+            )}
+          </Button>
+
+          {/* FR-113.A2: Save, Load & Schedule controls */}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              data-testid="save-report-btn"
+              onClick={handleSaveReport}
+              variant="default"
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Save />
+              Save Report
+            </Button>
+
+            {savedReports.length > 0 && (
+              <Select
+                onValueChange={(value) => handleLoadSavedReport(value)}
+              >
+                <SelectTrigger className="w-[200px]" data-testid="saved-reports-dropdown">
+                  <SelectValue placeholder="Saved Reports..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {savedReports.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <Select
+              value={scheduleFrequency}
+              onValueChange={(value) => setScheduleFrequency(value as 'daily' | 'weekly' | 'monthly')}
+            >
+              <SelectTrigger className="w-[130px]" data-testid="schedule-frequency">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Daily</SelectItem>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              data-testid="schedule-report-btn"
+              onClick={handleScheduleReport}
+              variant="default"
+              className="bg-indigo-500 hover:bg-indigo-600"
+            >
+              <Clock />
+              Schedule Report
+            </Button>
+          </div>
+          {scheduleMessage && (
+            <p className="text-sm text-green-600" data-testid="schedule-confirmation">
+              {scheduleMessage}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Report Results */}
       {reportResult && (
-        <div style={styles.panel} data-testid="report-results">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={styles.panelTitle}>{reportResult.schema.name}</h3>
-            <span style={styles.resultMeta}>
+        <Card data-testid="report-results">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardTitle className="text-base">{reportResult.schema.name}</CardTitle>
+            <span className="text-xs text-muted-foreground">
               {reportResult.totalRows} rows | Generated at{' '}
               {new Date(reportResult.generatedAt).toLocaleString()}
             </span>
-          </div>
-
-          {reportResult.rows.length === 0 ? (
-            <p style={styles.placeholderText}>No data found for this report configuration</p>
-          ) : (
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
+          </CardHeader>
+          <CardContent>
+            {reportResult.rows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No data found for this report configuration</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
                     {columnHeaders.map((col) => (
-                      <th key={col} style={styles.th}>{col}</th>
+                      <TableHead key={col}>{col}</TableHead>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {reportResult.rows.map((row, idx) => (
-                    <tr key={idx}>
+                    <TableRow key={idx}>
                       {columnHeaders.map((col) => (
-                        <td key={col} style={styles.td}>
+                        <TableCell key={col}>
                           {row[col] !== undefined && row[col] !== null
                             ? String(row[col])
                             : '-'}
-                        </td>
+                        </TableCell>
                       ))}
-                    </tr>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );
-};
-
-const styles: Record<string, CSSProperties> = {
-  container: {
-    padding: '0',
-  },
-  heading: {
-    margin: '0 0 1.5rem 0',
-    fontSize: '1.5rem',
-    fontWeight: 700,
-  },
-  panel: {
-    backgroundColor: 'var(--color-surface)',
-    border: '1px solid var(--color-border)',
-    borderRadius: '8px',
-    padding: '1.25rem',
-    marginBottom: '1.5rem',
-  },
-  panelTitle: {
-    fontSize: '1rem',
-    fontWeight: 600,
-    margin: '0 0 1rem 0',
-  },
-  formGroup: {
-    marginBottom: '1rem',
-  },
-  label: {
-    display: 'block',
-    fontSize: '0.85rem',
-    fontWeight: 600,
-    marginBottom: '0.5rem',
-    color: '#475569',
-  },
-  input: {
-    width: '100%',
-    padding: '0.5rem 0.75rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '6px',
-    fontSize: '0.85rem',
-    boxSizing: 'border-box',
-  },
-  chipContainer: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '0.5rem',
-  },
-  chip: {
-    padding: '0.35rem 0.75rem',
-    borderRadius: '16px',
-    fontSize: '0.8rem',
-    cursor: 'pointer',
-    fontWeight: 500,
-  },
-  generateBtn: {
-    padding: '0.6rem 1.5rem',
-    backgroundColor: 'var(--color-accent, #3b82f6)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '0.9rem',
-    fontWeight: 600,
-    cursor: 'pointer',
-    marginTop: '0.5rem',
-  },
-  errorText: {
-    color: '#dc2626',
-    fontSize: '0.85rem',
-    margin: '0.5rem 0',
-  },
-  resultMeta: {
-    fontSize: '0.75rem',
-    color: '#94a3b8',
-  },
-  tableContainer: {
-    overflowX: 'auto',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    fontSize: '0.85rem',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '0.5rem 0.75rem',
-    borderBottom: '2px solid var(--color-border)',
-    fontSize: '0.8rem',
-    fontWeight: 600,
-    color: '#475569',
-  },
-  td: {
-    padding: '0.4rem 0.75rem',
-    borderBottom: '1px solid var(--color-border)',
-  },
-  placeholderText: {
-    margin: 0,
-    fontSize: '0.875rem',
-    color: '#94a3b8',
-  },
-  dropZone: {
-    minHeight: '48px',
-    padding: '0.5rem 0.75rem',
-    border: '2px dashed #d1d5db',
-    borderRadius: '8px',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '0.4rem',
-    alignItems: 'center',
-    fontSize: '0.8rem',
-    color: '#94a3b8',
-    marginBottom: '1rem',
-    transition: 'border-color 0.15s, background-color 0.15s',
-  },
-  selectedTag: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.3rem',
-    padding: '0.25rem 0.6rem',
-    borderRadius: '12px',
-    backgroundColor: '#dbeafe',
-    color: '#1d4ed8',
-    fontSize: '0.75rem',
-    fontWeight: 600,
-  },
-  removeTagBtn: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#1d4ed8',
-    fontSize: '0.7rem',
-    fontWeight: 700,
-    padding: '0 2px',
-    lineHeight: 1,
-  },
 };
 
 export default CustomReportBuilder;

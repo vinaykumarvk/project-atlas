@@ -144,21 +144,21 @@ describe('Dashboard Drill-down Navigation (FR-110 A2)', () => {
     });
   });
 
-  it('summary cards have cursor: pointer style', () => {
+  it('summary cards have cursor-pointer class', () => {
     withEnv('VITE_DEMO_MODE', 'true', () => {
       renderWithProviders(<DashboardPage />);
 
       const card = screen.getByTestId('card-total-cases');
-      expect(card.style.cursor).toBe('pointer');
+      expect(card.className).toContain('cursor-pointer');
     });
   });
 
-  it('status bars have cursor: pointer style', () => {
+  it('status bars have cursor-pointer class', () => {
     withEnv('VITE_DEMO_MODE', 'true', () => {
       renderWithProviders(<DashboardPage />);
 
       const bar = screen.getByTestId('bar-new');
-      expect(bar.style.cursor).toBe('pointer');
+      expect(bar.className).toContain('cursor-pointer');
     });
   });
 });

@@ -3,6 +3,8 @@ import { MasterTable } from './components/MasterTable';
 import { ProposeChangeDrawer } from './components/ProposeChangeDrawer';
 import { ApproverInbox } from './components/ApproverInbox';
 import { BulkImportWizard } from './components/BulkImportWizard';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 
 const MASTER_TABS = [
   { key: 'property_location', label: 'Property Locations' },
@@ -25,63 +27,62 @@ export function MasterManagement() {
   const [selectedRow, setSelectedRow] = useState<Record<string, unknown> | null>(null);
 
   return (
-    <div className="master-management">
-      <div className="page-header">
-        <h2>Master Data Management</h2>
-        <div className="header-actions">
-          <button type="button" className="btn-secondary" onClick={() => setShowInbox(true)}>
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold tracking-tight">Master Data Management</h2>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={() => setShowInbox(true)}>
             Approver Inbox (3)
-          </button>
-          <button type="button" className="btn-secondary" onClick={() => setShowImport(true)}>
+          </Button>
+          <Button variant="secondary" onClick={() => setShowImport(true)}>
             Bulk Import
-          </button>
-          <button type="button" className="btn-primary" onClick={() => { setSelectedRow(null); setShowPropose(true); }}>
+          </Button>
+          <Button onClick={() => { setSelectedRow(null); setShowPropose(true); }}>
             + Propose Change
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="master-tabs" role="tablist">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as MasterKey)}
+      >
+        <TabsList className="flex h-auto flex-wrap gap-1">
+          {MASTER_TABS.map((tab) => (
+            <TabsTrigger key={tab.key} value={tab.key}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
         {MASTER_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            role="tab"
-            type="button"
-            aria-selected={activeTab === tab.key}
-            className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {tab.label}
-          </button>
+          <TabsContent key={tab.key} value={tab.key}>
+            <MasterTable
+              masterKey={tab.key}
+              onEdit={(row) => { setSelectedRow(row); setShowPropose(true); }}
+            />
+          </TabsContent>
         ))}
-      </div>
+      </Tabs>
 
-      <div role="tabpanel">
-        <MasterTable
-          masterKey={activeTab}
-          onEdit={(row) => { setSelectedRow(row); setShowPropose(true); }}
-        />
-      </div>
+      <ProposeChangeDrawer
+        open={showPropose}
+        masterKey={activeTab}
+        existingData={selectedRow}
+        onClose={() => setShowPropose(false)}
+        onSubmit={() => { setShowPropose(false); }}
+      />
 
-      {showPropose && (
-        <ProposeChangeDrawer
-          masterKey={activeTab}
-          existingData={selectedRow}
-          onClose={() => setShowPropose(false)}
-          onSubmit={() => { setShowPropose(false); }}
-        />
-      )}
+      <ApproverInbox
+        open={showInbox}
+        onClose={() => setShowInbox(false)}
+      />
 
-      {showInbox && (
-        <ApproverInbox onClose={() => setShowInbox(false)} />
-      )}
-
-      {showImport && (
-        <BulkImportWizard
-          masterKey={activeTab}
-          onClose={() => setShowImport(false)}
-        />
-      )}
+      <BulkImportWizard
+        open={showImport}
+        masterKey={activeTab}
+        onClose={() => setShowImport(false)}
+      />
     </div>
   );
 }

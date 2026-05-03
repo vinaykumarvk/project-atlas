@@ -1,4 +1,25 @@
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface User {
   id: string;
@@ -34,94 +55,105 @@ export function UserManagement() {
   );
 
   return (
-    <div className="user-management">
-      <div className="section-header">
-        <h3>Users & Roles</h3>
-        <button className="btn-primary">+ Add User</button>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Users &amp; Roles</h3>
+        <Button>+ Add User</Button>
       </div>
 
-      <input
+      <Input
         type="search"
         placeholder="Search users..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="table-search"
+        className="max-w-sm"
       />
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Roles</th>
-            <th>Status</th>
-            <th>Last Login</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Roles</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Last Login</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {filtered.map((user) => (
-            <tr key={user.id}>
-              <td>{user.name}</td>
-              <td>{user.email}</td>
-              <td>
-                {user.roles.map((role) => (
-                  <span key={role} className="role-chip">{role}</span>
-                ))}
-              </td>
-              <td>
-                <span className={`status-badge status-${user.status}`}>{user.status}</span>
-              </td>
-              <td>{user.lastLogin}</td>
-              <td>
-                <button className="btn-sm" onClick={() => setEditingUser(user)}>Edit</button>
-                <button className="btn-sm btn-ghost">
-                  {user.status === 'active' ? 'Deactivate' : 'Activate'}
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {editingUser && (
-        <div className="drawer-overlay" onClick={() => setEditingUser(null)}>
-          <div className="drawer" onClick={(e) => e.stopPropagation()}>
-            <div className="drawer-header">
-              <h3>Edit User: {editingUser.name}</h3>
-              <button className="drawer-close" onClick={() => setEditingUser(null)}>X</button>
-            </div>
-            <div className="drawer-body">
-              <div className="form-field">
-                <label>Name</label>
-                <input type="text" defaultValue={editingUser.name} />
-              </div>
-              <div className="form-field">
-                <label>Email</label>
-                <input type="email" defaultValue={editingUser.email} />
-              </div>
-              <div className="form-field">
-                <label>Roles</label>
-                <div className="checkbox-group">
-                  {ALL_ROLES.map((role) => (
-                    <label key={role} className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        defaultChecked={editingUser.roles.includes(role)}
-                      />
-                      {role}
-                    </label>
+            <TableRow key={user.id}>
+              <TableCell className="font-medium">{user.name}</TableCell>
+              <TableCell>{user.email}</TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {user.roles.map((role) => (
+                    <Badge key={role} variant="secondary">{role}</Badge>
                   ))}
                 </div>
-              </div>
-              <div className="drawer-footer">
-                <button className="btn-secondary" onClick={() => setEditingUser(null)}>Cancel</button>
-                <button className="btn-primary" onClick={() => setEditingUser(null)}>Save</button>
+              </TableCell>
+              <TableCell>
+                <Badge
+                  variant={user.status === 'active' ? 'default' : 'outline'}
+                  className={user.status === 'active' ? 'bg-green-600 hover:bg-green-600' : ''}
+                >
+                  {user.status}
+                </Badge>
+              </TableCell>
+              <TableCell>{user.lastLogin}</TableCell>
+              <TableCell>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setEditingUser(user)}>Edit</Button>
+                  <Button variant="ghost" size="sm">
+                    {user.status === 'active' ? 'Deactivate' : 'Activate'}
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <Sheet open={!!editingUser} onOpenChange={(open) => { if (!open) setEditingUser(null); }}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Edit User: {editingUser?.name}</SheetTitle>
+            <SheetDescription>
+              Update user details and role assignments.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="space-y-6 py-6">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name</Label>
+              <Input id="edit-name" type="text" defaultValue={editingUser?.name} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input id="edit-email" type="email" defaultValue={editingUser?.email} />
+            </div>
+            <div className="space-y-3">
+              <Label>Roles</Label>
+              <div className="grid grid-cols-1 gap-3">
+                {ALL_ROLES.map((role) => (
+                  <div key={role} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`role-${role}`}
+                      defaultChecked={editingUser?.roles.includes(role)}
+                    />
+                    <Label htmlFor={`role-${role}`} className="font-normal">
+                      {role}
+                    </Label>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
-        </div>
-      )}
+          <SheetFooter>
+            <Button variant="outline" onClick={() => setEditingUser(null)}>Cancel</Button>
+            <Button onClick={() => setEditingUser(null)}>Save</Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

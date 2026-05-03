@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { cn } from '@/lib/utils';
 
 interface DraftDiffProps {
   original: string;
@@ -16,7 +17,10 @@ export function DraftDiff({ original, edited, editable, onEdit }: DraftDiffProps
   const segments = useMemo(() => computeWordDiff(original, edited), [original, edited]);
 
   return (
-    <div data-testid="draft-diff" style={{ fontFamily: 'monospace', lineHeight: 1.6, padding: 12, backgroundColor: '#f9fafb', borderRadius: 8, border: '1px solid #e5e7eb' }}>
+    <div
+      data-testid="draft-diff"
+      className="rounded-lg border border-border bg-muted/50 p-3 font-mono leading-relaxed"
+    >
       {segments.map((seg, i) => {
         if (seg.type === 'added') {
           return (
@@ -25,14 +29,21 @@ export function DraftDiff({ original, edited, editable, onEdit }: DraftDiffProps
               contentEditable={editable}
               suppressContentEditableWarning
               onBlur={(e) => onEdit?.(e.currentTarget.textContent || '')}
-              style={{ backgroundColor: '#bbf7d0', textDecoration: 'none', padding: '1px 2px', cursor: editable ? 'text' : 'default' }}
+              className={cn(
+                'bg-green-200 px-0.5 dark:bg-green-900/50',
+                editable && 'cursor-text',
+              )}
             >
               {seg.text}
             </span>
           );
         }
         if (seg.type === 'removed') {
-          return <span key={i} style={{ backgroundColor: '#fecaca', textDecoration: 'line-through', padding: '1px 2px' }}>{seg.text}</span>;
+          return (
+            <span key={i} className="bg-red-200 px-0.5 line-through dark:bg-red-900/50">
+              {seg.text}
+            </span>
+          );
         }
         return <span key={i}>{seg.text}</span>;
       })}

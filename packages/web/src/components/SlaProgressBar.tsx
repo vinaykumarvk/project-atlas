@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { cn } from '@/lib/utils';
 
 interface SlaProgressBarProps {
   /** Percentage of SLA time remaining (0-100) */
@@ -7,63 +7,34 @@ interface SlaProgressBarProps {
   label?: string;
 }
 
-function getBarColor(percent: number): string {
-  if (percent > 50) return '#16a34a'; // green
-  if (percent > 20) return '#ca8a04'; // amber
-  return '#dc2626'; // red
+function getBarClasses(percent: number): string {
+  if (percent > 50) return 'bg-green-600';
+  if (percent > 20) return 'bg-yellow-600';
+  return 'bg-red-600';
 }
 
-function getBackgroundColor(percent: number): string {
-  if (percent > 50) return '#dcfce7';
-  if (percent > 20) return '#fef9c3';
-  return '#fee2e2';
+function getTrackClasses(percent: number): string {
+  if (percent > 50) return 'bg-green-100';
+  if (percent > 20) return 'bg-yellow-100';
+  return 'bg-red-100';
 }
 
 export function SlaProgressBar({ remainingPercent, label }: SlaProgressBarProps) {
   const clampedPercent = Math.max(0, Math.min(100, remainingPercent));
-  const barColor = getBarColor(clampedPercent);
-  const bgColor = getBackgroundColor(clampedPercent);
-
-  const containerStyle: CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.25rem',
-    width: '100%',
-  };
-
-  const labelRowStyle: CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '0.75rem',
-    color: '#64748b',
-  };
-
-  const trackStyle: CSSProperties = {
-    width: '100%',
-    height: '8px',
-    borderRadius: '4px',
-    backgroundColor: bgColor,
-    overflow: 'hidden',
-  };
-
-  const fillStyle: CSSProperties = {
-    width: `${clampedPercent}%`,
-    height: '100%',
-    borderRadius: '4px',
-    backgroundColor: barColor,
-    transition: 'width 0.3s ease',
-  };
 
   return (
-    <div style={containerStyle}>
+    <div className="flex w-full flex-col gap-1">
       {label && (
-        <div style={labelRowStyle}>
+        <div className="flex justify-between text-xs text-muted-foreground">
           <span>{label}</span>
           <span>{clampedPercent}% remaining</span>
         </div>
       )}
-      <div style={trackStyle}>
-        <div style={fillStyle} />
+      <div className={cn('h-2 w-full overflow-hidden rounded', getTrackClasses(clampedPercent))}>
+        <div
+          className={cn('h-full rounded transition-all duration-300', getBarClasses(clampedPercent))}
+          style={{ width: `${clampedPercent}%` }}
+        />
       </div>
     </div>
   );

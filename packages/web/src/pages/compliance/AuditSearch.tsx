@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useAuditLogs, type AuditLogFilters } from '../../hooks/useAuditLogs';
+import { Input } from '@/components/ui/input';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 
 export function AuditSearch() {
   const [filters, setFilters] = useState<AuditLogFilters>({
@@ -18,52 +21,52 @@ export function AuditSearch() {
   };
 
   return (
-    <div style={{ padding: '1.5rem' }}>
-      <h2 style={{ margin: '0 0 1.5rem 0' }}>Audit Log Search</h2>
+    <div className="p-6">
+      <h2 className="mb-6">Audit Log Search</h2>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <input
+      <div className="flex gap-4 mb-6 flex-wrap">
+        <Input
           type="text"
           placeholder="Event code"
           value={filters.event_code ?? ''}
           onChange={(e) => handleFilterChange('event_code', e.target.value)}
-          style={inputStyle}
+          className="min-w-[140px] w-auto"
         />
-        <input
+        <Input
           type="text"
           placeholder="Actor ID"
           value={filters.actor_id ?? ''}
           onChange={(e) => handleFilterChange('actor_id', e.target.value)}
-          style={inputStyle}
+          className="min-w-[140px] w-auto"
         />
-        <input
+        <Input
           type="text"
           placeholder="Resource type"
           value={filters.resource_type ?? ''}
           onChange={(e) => handleFilterChange('resource_type', e.target.value)}
-          style={inputStyle}
+          className="min-w-[140px] w-auto"
         />
-        <input
+        <Input
           type="date"
           placeholder="From date"
           value={filters.from_date ?? ''}
           onChange={(e) => handleFilterChange('from_date', e.target.value)}
-          style={inputStyle}
+          className="min-w-[140px] w-auto"
         />
-        <input
+        <Input
           type="date"
           placeholder="To date"
           value={filters.to_date ?? ''}
           onChange={(e) => handleFilterChange('to_date', e.target.value)}
-          style={inputStyle}
+          className="min-w-[140px] w-auto"
         />
       </div>
 
       {/* Status */}
       {isLoading && <p>Loading audit logs...</p>}
       {error && (
-        <p style={{ color: '#dc2626' }}>
+        <p className="text-destructive">
           Error loading audit logs: {error instanceof Error ? error.message : 'Unknown error'}
         </p>
       )}
@@ -71,66 +74,66 @@ export function AuditSearch() {
       {/* Results table */}
       {data && (
         <>
-          <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+          <p className="text-sm text-muted-foreground mb-3">
             Showing {data.data.length} of {data.total} results (page {data.page})
           </p>
 
-          <div style={{ overflowX: 'auto' }}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Timestamp</th>
-                  <th style={thStyle}>Event Code</th>
-                  <th style={thStyle}>Action</th>
-                  <th style={thStyle}>Actor</th>
-                  <th style={thStyle}>Resource</th>
-                  <th style={thStyle}>IP Address</th>
-                  <th style={thStyle}>Hash</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.data.map((log) => (
-                  <tr key={log.id}>
-                    <td style={tdStyle}>
-                      {new Date(log.created_at).toLocaleString()}
-                    </td>
-                    <td style={tdStyle}>{log.event_code}</td>
-                    <td style={tdStyle}>{log.action}</td>
-                    <td style={tdStyle}>{log.actor_id ?? '-'}</td>
-                    <td style={tdStyle}>
-                      {log.resource_type}
-                      {log.resource_id ? ` #${log.resource_id}` : ''}
-                    </td>
-                    <td style={tdStyle}>{log.ip_address ?? '-'}</td>
-                    <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                      {log.row_hash.substring(0, 12)}...
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Timestamp</TableHead>
+                <TableHead>Event Code</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Actor</TableHead>
+                <TableHead>Resource</TableHead>
+                <TableHead>IP Address</TableHead>
+                <TableHead>Hash</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.data.map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell>
+                    {new Date(log.created_at).toLocaleString()}
+                  </TableCell>
+                  <TableCell>{log.event_code}</TableCell>
+                  <TableCell>{log.action}</TableCell>
+                  <TableCell>{log.actor_id ?? '-'}</TableCell>
+                  <TableCell>
+                    {log.resource_type}
+                    {log.resource_id ? ` #${log.resource_id}` : ''}
+                  </TableCell>
+                  <TableCell>{log.ip_address ?? '-'}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {log.row_hash.substring(0, 12)}...
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
           {/* Pagination */}
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-            <button
+          <div className="flex gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
               disabled={filters.page === 1}
               onClick={() =>
                 setFilters((prev) => ({ ...prev, page: (prev.page ?? 1) - 1 }))
               }
-              style={btnStyle}
             >
               Previous
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               disabled={data.data.length < (filters.limit ?? 20)}
               onClick={() =>
                 setFilters((prev) => ({ ...prev, page: (prev.page ?? 1) + 1 }))
               }
-              style={btnStyle}
             >
               Next
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -139,45 +142,3 @@ export function AuditSearch() {
 }
 
 export default AuditSearch;
-
-// ---------------------------------------------------------------------------
-// Inline styles
-// ---------------------------------------------------------------------------
-
-const inputStyle: React.CSSProperties = {
-  padding: '0.5rem 0.75rem',
-  border: '1px solid #ddd',
-  borderRadius: '4px',
-  fontSize: '0.875rem',
-  minWidth: '140px',
-};
-
-const tableStyle: React.CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  fontSize: '0.875rem',
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '0.625rem 0.75rem',
-  borderBottom: '2px solid #e2e8f0',
-  fontWeight: 600,
-  color: '#475569',
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '0.5rem 0.75rem',
-  borderBottom: '1px solid #f1f5f9',
-  color: '#334155',
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: '0.5rem 1rem',
-  border: '1px solid #ddd',
-  borderRadius: '4px',
-  backgroundColor: '#fff',
-  cursor: 'pointer',
-  fontSize: '0.85rem',
-};

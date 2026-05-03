@@ -1,8 +1,26 @@
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isDemoMode } from '../config/flags';
 import { useDisbursalReadiness } from '../hooks/useCollateralOps';
 import type { DisbursalReadinessData, DisbursalReadinessGroup } from '../hooks/useCollateralOps';
+import { cn } from '@/lib/utils';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, ChevronUp, CircleDollarSign } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Mock data for demo mode
@@ -79,11 +97,11 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  VALUATION_PENDING: '#f59e0b',
-  LEGAL_PENDING: '#8b5cf6',
-  TITLE_CLEAR_PENDING: '#ec4899',
-  DOCUMENT_MISSING: '#dc2626',
-  NONE: '#16a34a',
+  VALUATION_PENDING: 'bg-amber-500',
+  LEGAL_PENDING: 'bg-violet-500',
+  TITLE_CLEAR_PENDING: 'bg-pink-500',
+  DOCUMENT_MISSING: 'bg-red-600',
+  NONE: 'bg-green-600',
 };
 
 // ---------------------------------------------------------------------------
@@ -103,11 +121,11 @@ const DisbursalReadinessPage = () => {
   // Loading
   if (!demo && isLoading) {
     return (
-      <div style={styles.container}>
-        <h2 style={styles.heading}>Disbursal Readiness</h2>
-        <div style={styles.placeholder}>
-          <div style={styles.spinner} />
-          <p style={styles.placeholderText}>Loading disbursal readiness data...</p>
+      <div>
+        <h2 className="mb-6 text-2xl font-bold">Disbursal Readiness</h2>
+        <div className="flex flex-col items-center justify-center p-16 border border-dashed rounded-lg bg-card text-center">
+          <div className="w-8 h-8 border-3 border-border border-t-blue-500 rounded-full animate-spin mb-4" />
+          <p className="text-sm text-muted-foreground max-w-[480px] leading-relaxed">Loading disbursal readiness data...</p>
         </div>
       </div>
     );
@@ -116,10 +134,10 @@ const DisbursalReadinessPage = () => {
   // Error
   if (!demo && isError) {
     return (
-      <div style={styles.container}>
-        <h2 style={styles.heading}>Disbursal Readiness</h2>
-        <div style={{ ...styles.placeholder, borderColor: '#fecaca' }}>
-          <p style={{ ...styles.placeholderText, color: '#dc2626' }}>
+      <div>
+        <h2 className="mb-6 text-2xl font-bold">Disbursal Readiness</h2>
+        <div className="flex flex-col items-center justify-center p-16 border border-dashed border-red-200 rounded-lg bg-card text-center">
+          <p className="text-sm text-red-600 max-w-[480px] leading-relaxed">
             {error instanceof Error ? error.message : 'Failed to load disbursal readiness data'}
           </p>
         </div>
@@ -129,99 +147,136 @@ const DisbursalReadinessPage = () => {
 
   const totalCases = data.totalBlocked + data.totalReady;
 
+  // Empty state
+  if (!demo && totalCases === 0 && data.groups.length === 0) {
+    return (
+      <div>
+        <h2 className="mb-6 text-2xl font-bold">Disbursal Readiness</h2>
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center py-16 text-center">
+            <CircleDollarSign className="mb-4 h-12 w-12 text-muted-foreground/50" />
+            <h3 className="mb-2 text-lg font-semibold">No disbursal data</h3>
+            <p className="text-sm text-muted-foreground">Readiness data will appear once cases are in pipeline.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>Disbursal Readiness Command Center</h2>
+    <div>
+      <h2 className="mb-6 text-2xl font-bold">Disbursal Readiness Command Center</h2>
 
       {/* Summary Cards */}
-      <div style={styles.summaryRow}>
-        <div style={{ ...styles.summaryCard, borderLeft: '4px solid #3b82f6' }}>
-          <span style={styles.summaryLabel}>Total Active</span>
-          <span style={{ ...styles.summaryValue, color: '#3b82f6' }}>{totalCases}</span>
-        </div>
-        <div style={{ ...styles.summaryCard, borderLeft: '4px solid #dc2626' }}>
-          <span style={styles.summaryLabel}>Blocked</span>
-          <span style={{ ...styles.summaryValue, color: '#dc2626' }}>{data.totalBlocked}</span>
-        </div>
-        <div style={{ ...styles.summaryCard, borderLeft: '4px solid #16a34a' }}>
-          <span style={styles.summaryLabel}>Ready</span>
-          <span style={{ ...styles.summaryValue, color: '#16a34a' }}>{data.totalReady}</span>
-        </div>
-        <div style={{ ...styles.summaryCard, borderLeft: '4px solid #f59e0b' }}>
-          <span style={styles.summaryLabel}>Readiness Rate</span>
-          <span style={{ ...styles.summaryValue, color: '#f59e0b' }}>
-            {totalCases > 0 ? `${Math.round((data.totalReady / totalCases) * 100)}%` : '0%'}
-          </span>
-        </div>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4 mb-6">
+        <Card className="border-l-4 border-l-blue-500">
+          <CardContent className="p-5 flex flex-col gap-2">
+            <span className="text-xs uppercase text-muted-foreground font-semibold">Total Active</span>
+            <span className="text-3xl font-bold text-blue-500">{totalCases}</span>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-red-600">
+          <CardContent className="p-5 flex flex-col gap-2">
+            <span className="text-xs uppercase text-muted-foreground font-semibold">Blocked</span>
+            <span className="text-3xl font-bold text-red-600">{data.totalBlocked}</span>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-green-600">
+          <CardContent className="p-5 flex flex-col gap-2">
+            <span className="text-xs uppercase text-muted-foreground font-semibold">Ready</span>
+            <span className="text-3xl font-bold text-green-600">{data.totalReady}</span>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-amber-500">
+          <CardContent className="p-5 flex flex-col gap-2">
+            <span className="text-xs uppercase text-muted-foreground font-semibold">Readiness Rate</span>
+            <span className="text-3xl font-bold text-amber-500">
+              {totalCases > 0 ? `${Math.round((data.totalReady / totalCases) * 100)}%` : '0%'}
+            </span>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Category Groups */}
-      <div style={styles.groupsContainer}>
+      <div className="flex flex-col gap-3">
         {data.groups.map((group: DisbursalReadinessGroup) => {
           const isExpanded = expandedCategory === group.category;
           const label = CATEGORY_LABELS[group.category] ?? group.category;
-          const color = CATEGORY_COLORS[group.category] ?? '#64748b';
+          const colorClass = CATEGORY_COLORS[group.category] ?? 'bg-slate-500';
 
           return (
-            <div key={group.category} style={styles.groupCard}>
-              <button
-                onClick={() => setExpandedCategory(isExpanded ? null : group.category)}
-                style={styles.groupHeader}
-                type="button"
+            <Card key={group.category} className="overflow-hidden">
+              <Collapsible
+                open={isExpanded}
+                onOpenChange={(open) => setExpandedCategory(open ? group.category : null)}
               >
-                <div style={styles.groupHeaderLeft}>
-                  <div style={{ ...styles.categoryDot, backgroundColor: color }} />
-                  <span style={styles.categoryLabel}>{label}</span>
-                  <span style={{ ...styles.countBadge, backgroundColor: color }}>
-                    {group.count}
-                  </span>
-                </div>
-                <span style={styles.expandIcon}>{isExpanded ? '-' : '+'}</span>
-              </button>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="w-full flex justify-between items-center p-4 px-5 h-auto text-[0.9rem] hover:bg-muted/50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn('w-3 h-3 rounded-full', colorClass)} />
+                      <span className="font-semibold text-[0.95rem]">{label}</span>
+                      <Badge className={cn('text-white', colorClass, `hover:${colorClass}`)}>
+                        {group.count}
+                      </Badge>
+                    </div>
+                    {isExpanded ? (
+                      <ChevronUp className="h-5 w-5 text-slate-500" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-slate-500" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
 
-              {isExpanded && group.cases.length > 0 && (
-                <div style={styles.casesList}>
-                  <table style={styles.table}>
-                    <thead>
-                      <tr>
-                        <th style={styles.th}>Case #</th>
-                        <th style={styles.th}>Type</th>
-                        <th style={styles.th}>Status</th>
-                        <th style={styles.th}>Risk Score</th>
-                        <th style={styles.th}>Location</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {group.cases.map((c) => (
-                        <tr
-                          key={c.id}
-                          onClick={() => navigate(`/cases/${c.id}`)}
-                          style={styles.tr}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#f1f5f9'; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
-                        >
-                          <td style={styles.td}><strong>{c.caseNumber}</strong></td>
-                          <td style={styles.td}>{c.caseType.replace(/_/g, ' ')}</td>
-                          <td style={styles.td}>{c.status.replace(/_/g, ' ')}</td>
-                          <td style={styles.td}>
-                            <span style={{ ...styles.riskBadge, backgroundColor: getRiskColor(c.riskScore), color: '#fff' }}>
-                              {c.riskScore}
-                            </span>
-                          </td>
-                          <td style={styles.td}>{c.propertyCity ?? 'N/A'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {isExpanded && group.cases.length === 0 && (
-                <div style={{ padding: '1rem', color: '#94a3b8', fontSize: '0.85rem' }}>
-                  No cases in this category.
-                </div>
-              )}
-            </div>
+                <CollapsibleContent>
+                  {group.cases.length > 0 ? (
+                    <div className="border-t">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-[0.7rem] uppercase">Case #</TableHead>
+                            <TableHead className="text-[0.7rem] uppercase">Type</TableHead>
+                            <TableHead className="text-[0.7rem] uppercase">Status</TableHead>
+                            <TableHead className="text-[0.7rem] uppercase">Risk Score</TableHead>
+                            <TableHead className="text-[0.7rem] uppercase">Location</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {group.cases.map((c) => (
+                            <TableRow
+                              key={c.id}
+                              onClick={() => navigate(`/cases/${c.id}`)}
+                              className="cursor-pointer transition-colors hover:bg-slate-100"
+                            >
+                              <TableCell><strong>{c.caseNumber}</strong></TableCell>
+                              <TableCell>{c.caseType.replace(/_/g, ' ')}</TableCell>
+                              <TableCell>{c.status.replace(/_/g, ' ')}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  className={cn(
+                                    'text-white',
+                                    getRiskColorClass(c.riskScore)
+                                  )}
+                                >
+                                  {c.riskScore}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{c.propertyCity ?? 'N/A'}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="p-4 text-muted-foreground text-sm">
+                      No cases in this category.
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
           );
         })}
       </div>
@@ -229,41 +284,11 @@ const DisbursalReadinessPage = () => {
   );
 };
 
-function getRiskColor(score: number): string {
-  if (score <= 25) return '#16a34a';
-  if (score <= 50) return '#f59e0b';
-  if (score <= 75) return '#ea580c';
-  return '#dc2626';
+function getRiskColorClass(score: number): string {
+  if (score <= 25) return 'bg-green-600 hover:bg-green-600';
+  if (score <= 50) return 'bg-amber-500 hover:bg-amber-500';
+  if (score <= 75) return 'bg-orange-600 hover:bg-orange-600';
+  return 'bg-red-600 hover:bg-red-600';
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const styles: Record<string, CSSProperties> = {
-  container: { padding: 0 },
-  heading: { margin: '0 0 1.5rem 0', fontSize: '1.5rem', fontWeight: 700 },
-  summaryRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' },
-  summaryCard: { backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' },
-  summaryLabel: { fontSize: '0.75rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 600 },
-  summaryValue: { fontSize: '2rem', fontWeight: 700 },
-  groupsContainer: { display: 'flex', flexDirection: 'column', gap: '0.75rem' },
-  groupCard: { backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', overflow: 'hidden' },
-  groupHeader: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9rem' },
-  groupHeaderLeft: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
-  categoryDot: { width: '12px', height: '12px', borderRadius: '50%' },
-  categoryLabel: { fontWeight: 600, fontSize: '0.95rem' },
-  countBadge: { padding: '0.15rem 0.6rem', borderRadius: '9999px', color: '#fff', fontSize: '0.75rem', fontWeight: 700 },
-  expandIcon: { fontSize: '1.25rem', fontWeight: 700, color: '#64748b' },
-  casesList: { borderTop: '1px solid var(--color-border)', padding: '0' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' },
-  th: { textAlign: 'left', padding: '0.5rem 1rem', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600, color: '#64748b', borderBottom: '1px solid var(--color-border)' },
-  tr: { cursor: 'pointer', transition: 'background-color 0.15s' },
-  td: { padding: '0.5rem 1rem', borderBottom: '1px solid var(--color-border)' },
-  riskBadge: { display: 'inline-block', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 },
-  placeholder: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem', border: '1px dashed var(--color-border)', borderRadius: '8px', backgroundColor: 'var(--color-surface)', textAlign: 'center' },
-  placeholderText: { margin: 0, fontSize: '0.875rem', color: '#94a3b8', maxWidth: '480px', lineHeight: 1.5 },
-  spinner: { width: '32px', height: '32px', border: '3px solid var(--color-border)', borderTop: '3px solid var(--color-accent, #3b82f6)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginBottom: '1rem' },
-};
 
 export default DisbursalReadinessPage;

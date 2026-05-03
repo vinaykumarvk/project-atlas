@@ -1,13 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
-
-const mentionStyle: CSSProperties = {
-  backgroundColor: '#dbeafe',
-  color: '#1d4ed8',
-  fontWeight: 600,
-  padding: '0.1rem 0.3rem',
-  borderRadius: '4px',
-  fontSize: 'inherit',
-};
+import type { ReactNode } from 'react';
 
 /**
  * Parse text for @mentions and return an array of React nodes.
@@ -30,7 +21,7 @@ export function parseMentions(text: string): ReactNode[] {
 
     // Push the highlighted mention
     parts.push(
-      <span key={`mention-${match.index}`} style={mentionStyle} data-testid="mention">
+      <span key={`mention-${match.index}`} className="rounded bg-blue-100 px-1 py-0.5 text-[length:inherit] font-semibold text-blue-700" data-testid="mention">
         @{match[1]}
       </span>,
     );

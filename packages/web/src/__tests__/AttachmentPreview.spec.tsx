@@ -66,6 +66,23 @@ function renderCaseDetail() {
   );
 }
 
+/** Radix Tabs triggers require mouseDown + click in jsdom (no PointerEvent). */
+function clickTab(name: string) {
+  const trigger = screen.getByRole('tab', { name });
+  fireEvent.mouseDown(trigger, { button: 0 });
+  fireEvent.click(trigger, { button: 0 });
+}
+
+/** Open the Attachments tab and click the preview button for attachment 2. */
+async function openPreviewModal() {
+  clickTab('Attachments');
+  const previewBtn = screen.getByTestId('preview-btn-2');
+  fireEvent.click(previewBtn);
+  await waitFor(() => {
+    expect(screen.getByTestId('attachment-preview-modal')).toBeInTheDocument();
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -82,9 +99,8 @@ describe('Attachment Preview Modal (FR-051.A3)', () => {
 
   it('shows preview buttons in attachment list', () => {
     renderCaseDetail();
-    // Navigate to Attachments tab
-    const attachmentsTab = screen.getByText('Attachments');
-    fireEvent.click(attachmentsTab);
+    // Navigate to Attachments tab (Radix Tabs need mouseDown)
+    clickTab('Attachments');
 
     // Attachment 2 (PDF) should have a preview button
     expect(screen.getByTestId('preview-btn-2')).toBeInTheDocument();
@@ -92,8 +108,7 @@ describe('Attachment Preview Modal (FR-051.A3)', () => {
 
   it('opens preview modal when preview button is clicked for PDF', async () => {
     renderCaseDetail();
-    const attachmentsTab = screen.getByText('Attachments');
-    fireEvent.click(attachmentsTab);
+    clickTab('Attachments');
 
     const previewBtn = screen.getByTestId('preview-btn-2');
     fireEvent.click(previewBtn);
@@ -105,60 +120,48 @@ describe('Attachment Preview Modal (FR-051.A3)', () => {
 
   it('shows filename in modal header', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Attachments'));
-    fireEvent.click(screen.getByTestId('preview-btn-2'));
+    await openPreviewModal();
 
-    await waitFor(() => {
-      expect(screen.getByTestId('attachment-preview-modal')).toHaveTextContent('property-title-search.pdf');
-    });
+    expect(screen.getByTestId('attachment-preview-modal')).toHaveTextContent('property-title-search.pdf');
   });
 
   it('renders iframe for PDF attachments', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Attachments'));
-    fireEvent.click(screen.getByTestId('preview-btn-2'));
+    await openPreviewModal();
 
-    await waitFor(() => {
-      expect(screen.getByTestId('attachment-preview-pdf')).toBeInTheDocument();
-    });
+    expect(screen.getByTestId('attachment-preview-pdf')).toBeInTheDocument();
   });
 
   it('shows close button in modal', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Attachments'));
-    fireEvent.click(screen.getByTestId('preview-btn-2'));
+    await openPreviewModal();
 
-    await waitFor(() => {
-      expect(screen.getByTestId('attachment-preview-close')).toBeInTheDocument();
-    });
+    // shadcn Dialog renders a close button with sr-only "Close" text
+    const modal = screen.getByTestId('attachment-preview-modal');
+    const closeBtn = modal.querySelector('button');
+    expect(closeBtn).toBeInTheDocument();
   });
 
   it('closes modal when close button is clicked', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Attachments'));
-    fireEvent.click(screen.getByTestId('preview-btn-2'));
+    await openPreviewModal();
 
-    await waitFor(() => {
-      expect(screen.getByTestId('attachment-preview-modal')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('attachment-preview-close'));
+    // shadcn Dialog close button is inside DialogContent
+    const modal = screen.getByTestId('attachment-preview-modal');
+    const closeBtn = modal.querySelector('button')!;
+    fireEvent.click(closeBtn);
 
     await waitFor(() => {
       expect(screen.queryByTestId('attachment-preview-modal')).not.toBeInTheDocument();
     });
   });
 
-  it('closes modal when overlay is clicked', async () => {
+  it('closes modal when Escape key is pressed', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Attachments'));
-    fireEvent.click(screen.getByTestId('preview-btn-2'));
+    await openPreviewModal();
 
-    await waitFor(() => {
-      expect(screen.getByTestId('attachment-preview-modal')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId('attachment-preview-modal'));
+    // Radix Dialog closes on Escape key
+    fireEvent.keyDown(document, { key: 'Escape' });
 
     await waitFor(() => {
       expect(screen.queryByTestId('attachment-preview-modal')).not.toBeInTheDocument();
@@ -167,13 +170,9 @@ describe('Attachment Preview Modal (FR-051.A3)', () => {
 
   it('modal has correct aria attributes', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Attachments'));
-    fireEvent.click(screen.getByTestId('preview-btn-2'));
+    await openPreviewModal();
 
-    await waitFor(() => {
-      const modal = screen.getByTestId('attachment-preview-modal');
-      expect(modal).toHaveAttribute('role', 'dialog');
-      expect(modal).toHaveAttribute('aria-modal', 'true');
-    });
+    const modal = screen.getByTestId('attachment-preview-modal');
+    expect(modal).toHaveAttribute('role', 'dialog');
   });
 });

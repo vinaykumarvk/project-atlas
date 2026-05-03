@@ -90,8 +90,15 @@ function renderCaseDetail() {
   );
 }
 
+/** Radix Tabs triggers require mouseDown + click in jsdom (no PointerEvent). */
+function clickTab(name: string) {
+  const trigger = screen.getByRole('tab', { name });
+  fireEvent.mouseDown(trigger, { button: 0 });
+  fireEvent.click(trigger, { button: 0 });
+}
+
 // ---------------------------------------------------------------------------
-// Tests — FR-053.A2: Reply Drafts Tab
+// Tests -- FR-053.A2: Reply Drafts Tab
 // ---------------------------------------------------------------------------
 
 describe('Reply Drafts Tab (FR-053.A2)', () => {
@@ -101,13 +108,12 @@ describe('Reply Drafts Tab (FR-053.A2)', () => {
 
   it('renders the Reply Drafts tab button', () => {
     renderCaseDetail();
-    expect(screen.getByText('Reply Drafts')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Reply Drafts' })).toBeInTheDocument();
   });
 
   it('shows reply drafts content when Reply Drafts tab is clicked', async () => {
     renderCaseDetail();
-    const replyDraftsTab = screen.getByText('Reply Drafts');
-    fireEvent.click(replyDraftsTab);
+    clickTab('Reply Drafts');
 
     await waitFor(() => {
       expect(screen.getByTestId('reply-drafts-tab')).toBeInTheDocument();
@@ -116,7 +122,7 @@ describe('Reply Drafts Tab (FR-053.A2)', () => {
 
   it('displays draft subjects from mock data', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Reply Drafts'));
+    clickTab('Reply Drafts');
 
     await waitFor(() => {
       expect(
@@ -127,7 +133,7 @@ describe('Reply Drafts Tab (FR-053.A2)', () => {
 
   it('displays status badges for each draft', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Reply Drafts'));
+    clickTab('Reply Drafts');
 
     await waitFor(() => {
       expect(screen.getByText('PROPOSED')).toBeInTheDocument();
@@ -137,7 +143,7 @@ describe('Reply Drafts Tab (FR-053.A2)', () => {
 
   it('displays Approve and Reject buttons for PROPOSED drafts', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Reply Drafts'));
+    clickTab('Reply Drafts');
 
     await waitFor(() => {
       expect(
@@ -151,7 +157,7 @@ describe('Reply Drafts Tab (FR-053.A2)', () => {
 
   it('displays Edit button for PROPOSED drafts', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Reply Drafts'));
+    clickTab('Reply Drafts');
 
     await waitFor(() => {
       expect(screen.getByTestId('edit-draft-rd-1')).toBeInTheDocument();
@@ -160,7 +166,7 @@ describe('Reply Drafts Tab (FR-053.A2)', () => {
 
   it('changes status to APPROVED when Approve button is clicked', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Reply Drafts'));
+    clickTab('Reply Drafts');
 
     await waitFor(() => {
       expect(
@@ -178,7 +184,7 @@ describe('Reply Drafts Tab (FR-053.A2)', () => {
 
   it('changes status to REJECTED when Reject button is clicked', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Reply Drafts'));
+    clickTab('Reply Drafts');
 
     await waitFor(() => {
       expect(
@@ -196,7 +202,7 @@ describe('Reply Drafts Tab (FR-053.A2)', () => {
 
   it('hides Approve/Reject buttons after action is taken', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Reply Drafts'));
+    clickTab('Reply Drafts');
 
     await waitFor(() => {
       expect(
@@ -218,7 +224,7 @@ describe('Reply Drafts Tab (FR-053.A2)', () => {
 
   it('displays draft body text', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Reply Drafts'));
+    clickTab('Reply Drafts');
 
     await waitFor(() => {
       expect(
@@ -229,7 +235,7 @@ describe('Reply Drafts Tab (FR-053.A2)', () => {
 
   it('shows approved-by info for approved drafts', async () => {
     renderCaseDetail();
-    fireEvent.click(screen.getByText('Reply Drafts'));
+    clickTab('Reply Drafts');
 
     await waitFor(() => {
       expect(

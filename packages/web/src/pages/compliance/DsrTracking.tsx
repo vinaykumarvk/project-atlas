@@ -7,15 +7,34 @@ import {
   type DsrType,
   type DsrRequest,
 } from '../../hooks/useDsrRequests';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
 
 const STATUS_OPTIONS: DsrStatus[] = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'REJECTED'];
 const TYPE_OPTIONS: DsrType[] = ['ACCESS', 'RECTIFICATION', 'ERASURE', 'PORTABILITY'];
 
-const statusColor: Record<DsrStatus, string> = {
-  PENDING: '#f59e0b',
-  IN_PROGRESS: '#3b82f6',
-  COMPLETED: '#10b981',
-  REJECTED: '#ef4444',
+const statusBadgeClass: Record<DsrStatus, string> = {
+  PENDING: 'bg-amber-500 text-white hover:bg-amber-500',
+  IN_PROGRESS: 'bg-blue-500 text-white hover:bg-blue-500',
+  COMPLETED: 'bg-emerald-500 text-white hover:bg-emerald-500',
+  REJECTED: 'bg-red-500 text-white hover:bg-red-500',
+};
+
+const statusSummaryColor: Record<DsrStatus, string> = {
+  PENDING: 'text-amber-500',
+  IN_PROGRESS: 'text-blue-500',
+  COMPLETED: 'text-emerald-500',
+  REJECTED: 'text-red-500',
 };
 
 /**
@@ -126,43 +145,44 @@ export function DsrTracking() {
   const allSelected = data ? selectedIds.size === data.data.length && data.data.length > 0 : false;
 
   return (
-    <div style={{ padding: '1.5rem' }}>
-      <h2 style={{ margin: '0 0 1.5rem 0' }}>Data Subject Request (DSR) Tracking</h2>
+    <div className="p-6">
+      <h2 className="mb-6">Data Subject Request (DSR) Tracking</h2>
 
       {/* Compliance Summary Card */}
       {complianceSummary && (
         <div
           data-testid="compliance-summary"
-          style={{
-            display: 'flex',
-            gap: '1.5rem',
-            marginBottom: '1.5rem',
-            flexWrap: 'wrap',
-          }}
+          className="flex gap-6 mb-6 flex-wrap"
         >
-          <div style={summaryCardStyle}>
-            <div style={summaryLabelStyle}>Total Requests</div>
-            <div style={summaryValueStyle}>{complianceSummary.total}</div>
-          </div>
+          <Card className="min-w-[120px] text-center">
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Total Requests</div>
+              <div className="text-2xl font-bold text-slate-800">{complianceSummary.total}</div>
+            </CardContent>
+          </Card>
           {STATUS_OPTIONS.map((status) => (
-            <div key={status} style={summaryCardStyle}>
-              <div style={summaryLabelStyle}>{status}</div>
-              <div style={{ ...summaryValueStyle, color: statusColor[status] }}>
-                {complianceSummary.byStatus[status] || 0}
-              </div>
-            </div>
+            <Card key={status} className="min-w-[120px] text-center">
+              <CardContent className="p-4">
+                <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">{status}</div>
+                <div className={cn('text-2xl font-bold', statusSummaryColor[status])}>
+                  {complianceSummary.byStatus[status] || 0}
+                </div>
+              </CardContent>
+            </Card>
           ))}
-          <div style={summaryCardStyle}>
-            <div style={summaryLabelStyle}>Avg Resolution</div>
-            <div style={summaryValueStyle}>
-              {complianceSummary.avgResolutionDays}d
-            </div>
-          </div>
+          <Card className="min-w-[120px] text-center">
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Avg Resolution</div>
+              <div className="text-2xl font-bold text-slate-800">
+                {complianceSummary.avgResolutionDays}d
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+      <div className="flex gap-4 mb-6 flex-wrap">
         <select
           value={filters.status ?? ''}
           onChange={(e) =>
@@ -172,7 +192,7 @@ export function DsrTracking() {
               page: 1,
             }))
           }
-          style={selectStyle}
+          className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
         >
           <option value="">All Statuses</option>
           {STATUS_OPTIONS.map((s) => (
@@ -189,7 +209,7 @@ export function DsrTracking() {
               page: 1,
             }))
           }
-          style={selectStyle}
+          className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
         >
           <option value="">All Types</option>
           {TYPE_OPTIONS.map((t) => (
@@ -202,162 +222,151 @@ export function DsrTracking() {
       {selectedIds.size > 0 && (
         <div
           data-testid="bulk-actions"
-          style={{
-            display: 'flex',
-            gap: '0.75rem',
-            marginBottom: '1rem',
-            alignItems: 'center',
-          }}
+          className="flex gap-3 mb-4 items-center"
         >
-          <span style={{ fontSize: '0.875rem', color: '#475569' }}>
+          <span className="text-sm text-slate-600">
             {selectedIds.size} selected
           </span>
-          <button
+          <Button
             onClick={handleBulkApprove}
-            style={{ ...btnStyle, backgroundColor: '#10b981', color: '#fff', border: 'none' }}
+            className="bg-emerald-500 hover:bg-emerald-600"
+            size="sm"
             data-testid="bulk-approve-btn"
           >
             Bulk Approve
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleBulkReject}
-            style={{ ...btnStyle, backgroundColor: '#ef4444', color: '#fff', border: 'none' }}
+            variant="destructive"
+            size="sm"
             data-testid="bulk-reject-btn"
           >
             Bulk Reject
-          </button>
+          </Button>
         </div>
       )}
 
       {isLoading && <p>Loading DSR requests...</p>}
       {error && (
-        <p style={{ color: '#dc2626' }}>
+        <p className="text-red-600">
           Error: {error instanceof Error ? error.message : 'Unknown error'}
         </p>
       )}
 
       {data && (
         <>
-          <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+          <p className="text-sm text-muted-foreground mb-3">
             {data.total} request(s) found
           </p>
 
-          <div style={{ overflowX: 'auto' }}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={toggleSelectAll}
-                      data-testid="select-all-checkbox"
-                    />
-                  </th>
-                  <th style={thStyle}>Subject</th>
-                  <th style={thStyle}>Type</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Description</th>
-                  <th style={thStyle}>SLA</th>
-                  <th style={thStyle}>Due Date</th>
-                  <th style={thStyle}>Created</th>
-                  <th style={thStyle}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.data.map((dsr) => {
-                  const sla = getSlaInfo(dsr);
-                  return (
-                    <tr key={dsr.id}>
-                      <td style={tdStyle}>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(dsr.id)}
-                          onChange={() => toggleSelect(dsr.id)}
-                          data-testid={`select-${dsr.id}`}
-                        />
-                      </td>
-                      <td style={tdStyle}>
-                        <div style={{ fontWeight: 500 }}>{dsr.subjectName}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                          {dsr.subjectEmail}
-                        </div>
-                      </td>
-                      <td style={tdStyle}>{dsr.type}</td>
-                      <td style={tdStyle}>
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            padding: '0.125rem 0.5rem',
-                            borderRadius: '999px',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            color: '#fff',
-                            backgroundColor: statusColor[dsr.status],
-                          }}
-                        >
-                          {dsr.status}
-                        </span>
-                      </td>
-                      <td style={{ ...tdStyle, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {dsr.description}
-                      </td>
-                      <td style={tdStyle}>
-                        <span
-                          data-testid={`sla-${dsr.id}`}
-                          style={{
-                            color: sla.overdue ? '#dc2626' : sla.urgent ? '#f59e0b' : '#10b981',
-                            fontWeight: sla.urgent ? 600 : 400,
-                          }}
-                        >
-                          {sla.text}
-                        </span>
-                      </td>
-                      <td style={tdStyle}>
-                        {new Date(dsr.dueDate).toLocaleDateString()}
-                      </td>
-                      <td style={tdStyle}>
-                        {new Date(dsr.createdAt).toLocaleDateString()}
-                      </td>
-                      <td style={tdStyle}>
-                        <select
-                          value={dsr.status}
-                          onChange={(e) =>
-                            handleStatusChange(dsr.id, e.target.value as DsrStatus)
-                          }
-                          style={{ ...selectStyle, minWidth: '100px', fontSize: '0.8rem' }}
-                        >
-                          {STATUS_OPTIONS.map((s) => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                        </select>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    data-testid="select-all-checkbox"
+                  />
+                </TableHead>
+                <TableHead className="whitespace-nowrap">Subject</TableHead>
+                <TableHead className="whitespace-nowrap">Type</TableHead>
+                <TableHead className="whitespace-nowrap">Status</TableHead>
+                <TableHead className="whitespace-nowrap">Description</TableHead>
+                <TableHead className="whitespace-nowrap">SLA</TableHead>
+                <TableHead className="whitespace-nowrap">Due Date</TableHead>
+                <TableHead className="whitespace-nowrap">Created</TableHead>
+                <TableHead className="whitespace-nowrap">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.data.map((dsr) => {
+                const sla = getSlaInfo(dsr);
+                return (
+                  <TableRow key={dsr.id}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(dsr.id)}
+                        onChange={() => toggleSelect(dsr.id)}
+                        data-testid={`select-${dsr.id}`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{dsr.subjectName}</div>
+                      <div className="text-xs text-slate-400">
+                        {dsr.subjectEmail}
+                      </div>
+                    </TableCell>
+                    <TableCell>{dsr.type}</TableCell>
+                    <TableCell>
+                      <Badge
+                        className={statusBadgeClass[dsr.status]}
+                      >
+                        {dsr.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[200px] overflow-hidden text-ellipsis">
+                      {dsr.description}
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        data-testid={`sla-${dsr.id}`}
+                        className={cn(
+                          sla.overdue ? 'text-red-600' : sla.urgent ? 'text-amber-500' : 'text-emerald-500',
+                          sla.urgent && 'font-semibold'
+                        )}
+                      >
+                        {sla.text}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(dsr.dueDate).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(dsr.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <select
+                        value={dsr.status}
+                        onChange={(e) =>
+                          handleStatusChange(dsr.id, e.target.value as DsrStatus)
+                        }
+                        className="h-8 min-w-[100px] rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm"
+                      >
+                        {STATUS_OPTIONS.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
 
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-            <button
+          <div className="flex gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
               disabled={filters.page === 1}
               onClick={() =>
                 setFilters((prev) => ({ ...prev, page: (prev.page ?? 1) - 1 }))
               }
-              style={btnStyle}
             >
               Previous
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               disabled={data.data.length < (filters.limit ?? 20)}
               onClick={() =>
                 setFilters((prev) => ({ ...prev, page: (prev.page ?? 1) + 1 }))
               }
-              style={btnStyle}
             >
               Next
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -366,65 +375,3 @@ export function DsrTracking() {
 }
 
 export default DsrTracking;
-
-const selectStyle: React.CSSProperties = {
-  padding: '0.5rem 0.75rem',
-  border: '1px solid #ddd',
-  borderRadius: '4px',
-  fontSize: '0.875rem',
-  backgroundColor: '#fff',
-};
-
-const tableStyle: React.CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  fontSize: '0.875rem',
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '0.625rem 0.75rem',
-  borderBottom: '2px solid #e2e8f0',
-  fontWeight: 600,
-  color: '#475569',
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '0.5rem 0.75rem',
-  borderBottom: '1px solid #f1f5f9',
-  color: '#334155',
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: '0.5rem 1rem',
-  border: '1px solid #ddd',
-  borderRadius: '4px',
-  backgroundColor: '#fff',
-  cursor: 'pointer',
-  fontSize: '0.85rem',
-};
-
-const summaryCardStyle: React.CSSProperties = {
-  padding: '1rem 1.25rem',
-  border: '1px solid #e2e8f0',
-  borderRadius: '8px',
-  backgroundColor: '#fff',
-  minWidth: '120px',
-  textAlign: 'center',
-};
-
-const summaryLabelStyle: React.CSSProperties = {
-  fontSize: '0.75rem',
-  color: '#64748b',
-  fontWeight: 500,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  marginBottom: '0.25rem',
-};
-
-const summaryValueStyle: React.CSSProperties = {
-  fontSize: '1.5rem',
-  fontWeight: 700,
-  color: '#1e293b',
-};

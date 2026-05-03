@@ -1,7 +1,11 @@
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { isDemoMode } from '../../config/flags';
 import { apiGet } from '../../api/client';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 interface RegulatoryEvidenceReport {
   generatedAt: string;
@@ -58,41 +62,47 @@ const RegulatoryEvidence = () => {
   };
 
   const renderSection = (key: string, title: string, content: React.ReactNode) => (
-    <div style={styles.section} data-testid={`evidence-${key}`}>
-      <div style={styles.sectionHeader} onClick={() => toggleSection(key)}>
-        <h3 style={styles.sectionTitle}>{title}</h3>
-        <span style={styles.expandIcon}>{expanded[key] ? '-' : '+'}</span>
-      </div>
-      {expanded[key] && <div style={styles.sectionContent}>{content}</div>}
-    </div>
+    <Card className="mb-3 overflow-hidden" data-testid={`evidence-${key}`}>
+      <Collapsible open={expanded[key]} onOpenChange={() => toggleSection(key)}>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="flex flex-row items-center justify-between cursor-pointer py-4 px-5">
+            <CardTitle className="text-base">{title}</CardTitle>
+            <span className="text-lg font-bold text-muted-foreground">{expanded[key] ? '-' : '+'}</span>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="px-5 pb-4 pt-0 text-sm leading-relaxed">{content}</CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
   );
 
   if (!demo && isLoading) {
-    return <div style={styles.container}><p>Loading regulatory evidence...</p></div>;
+    return <div><p>Loading regulatory evidence...</p></div>;
   }
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>Regulatory Evidence Center</h2>
+    <div>
+      <h2 className="mb-6 text-2xl font-bold">Regulatory Evidence Center</h2>
 
-      <div style={styles.dateRange}>
-        <label style={styles.dateLabel}>
-          From: <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={styles.dateInput} />
+      <div className="flex gap-4 mb-4">
+        <label className="text-sm flex items-center gap-2">
+          From: <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-auto" />
         </label>
-        <label style={styles.dateLabel}>
-          To: <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={styles.dateInput} />
+        <label className="text-sm flex items-center gap-2">
+          To: <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-auto" />
         </label>
       </div>
 
-      <p style={styles.generatedAt}>Generated: {evidence.generatedAt}</p>
+      <p className="text-xs text-muted-foreground mb-6">Generated: {evidence.generatedAt}</p>
 
       {renderSection('audit', 'Audit Log Summary', (
         <div>
           <p>Total Entries: <strong>{evidence.auditLogSummary.totalEntries}</strong></p>
-          <p>Chain Integrity: <span style={{ color: evidence.auditLogSummary.chainIntegrity.valid ? '#16a34a' : '#dc2626', fontWeight: 600 }}>{evidence.auditLogSummary.chainIntegrity.valid ? 'VALID' : 'BROKEN'}</span></p>
+          <p>Chain Integrity: <span className={cn('font-semibold', evidence.auditLogSummary.chainIntegrity.valid ? 'text-green-600' : 'text-red-600')}>{evidence.auditLogSummary.chainIntegrity.valid ? 'VALID' : 'BROKEN'}</span></p>
           <div>
             {Object.entries(evidence.auditLogSummary.byEventCode).map(([code, count]) => (
-              <div key={code} style={styles.row}><span>{code}</span><strong>{count}</strong></div>
+              <div key={code} className="flex justify-between py-1 border-b border-border"><span>{code}</span><strong>{count}</strong></div>
             ))}
           </div>
         </div>
@@ -102,7 +112,7 @@ const RegulatoryEvidence = () => {
         <div>
           <p>Total Records: <strong>{evidence.consentRecords.totalRecords}</strong></p>
           {Object.entries(evidence.consentRecords.byStatus).map(([status, count]) => (
-            <div key={status} style={styles.row}><span>{status}</span><strong>{count}</strong></div>
+            <div key={status} className="flex justify-between py-1 border-b border-border"><span>{status}</span><strong>{count}</strong></div>
           ))}
         </div>
       ))}
@@ -112,26 +122,26 @@ const RegulatoryEvidence = () => {
           <p>Total Requests: <strong>{evidence.dsrSummary.totalRequests}</strong></p>
           <p>Avg Completion: <strong>{evidence.dsrSummary.avgCompletionDays} days</strong></p>
           {Object.entries(evidence.dsrSummary.byStatus).map(([status, count]) => (
-            <div key={status} style={styles.row}><span>{status}</span><strong>{count}</strong></div>
+            <div key={status} className="flex justify-between py-1 border-b border-border"><span>{status}</span><strong>{count}</strong></div>
           ))}
         </div>
       ))}
 
       {renderSection('asvs', 'ASVS 4.0 Compliance', (
         <div>
-          <p>Overall Score: <span style={{ color: evidence.asvsReport.overallScore >= 80 ? '#16a34a' : '#dc2626', fontWeight: 600 }}>{evidence.asvsReport.overallScore}%</span></p>
-          <div style={styles.row}><span>Passed</span><strong style={{ color: '#16a34a' }}>{evidence.asvsReport.passed}</strong></div>
-          <div style={styles.row}><span>Failed</span><strong style={{ color: '#dc2626' }}>{evidence.asvsReport.failed}</strong></div>
-          <div style={styles.row}><span>N/A</span><strong>{evidence.asvsReport.notApplicable}</strong></div>
+          <p>Overall Score: <span className={cn('font-semibold', evidence.asvsReport.overallScore >= 80 ? 'text-green-600' : 'text-red-600')}>{evidence.asvsReport.overallScore}%</span></p>
+          <div className="flex justify-between py-1 border-b border-border"><span>Passed</span><strong className="text-green-600">{evidence.asvsReport.passed}</strong></div>
+          <div className="flex justify-between py-1 border-b border-border"><span>Failed</span><strong className="text-red-600">{evidence.asvsReport.failed}</strong></div>
+          <div className="flex justify-between py-1 border-b border-border"><span>N/A</span><strong>{evidence.asvsReport.notApplicable}</strong></div>
         </div>
       ))}
 
       {renderSection('dr-drill', 'DR Drill Report', (
         <div>
           <p>Last Drill: <strong>{evidence.drDrillReport.lastDrillDate || 'Never'}</strong></p>
-          <p>Overall: <span style={{ color: evidence.drDrillReport.overallSuccess ? '#16a34a' : '#dc2626', fontWeight: 600 }}>{evidence.drDrillReport.overallSuccess ? 'PASS' : 'FAIL'}</span></p>
+          <p>Overall: <span className={cn('font-semibold', evidence.drDrillReport.overallSuccess ? 'text-green-600' : 'text-red-600')}>{evidence.drDrillReport.overallSuccess ? 'PASS' : 'FAIL'}</span></p>
           {evidence.drDrillReport.steps.map((s) => (
-            <div key={s.name} style={styles.row}><span>{s.name}</span><span style={{ color: s.passed ? '#16a34a' : '#dc2626' }}>{s.passed ? 'PASS' : 'FAIL'}</span></div>
+            <div key={s.name} className="flex justify-between py-1 border-b border-border"><span>{s.name}</span><span className={s.passed ? 'text-green-600' : 'text-red-600'}>{s.passed ? 'PASS' : 'FAIL'}</span></div>
           ))}
         </div>
       ))}
@@ -140,7 +150,7 @@ const RegulatoryEvidence = () => {
         <div>
           <p>Model: <strong>{evidence.modelRiskSummary.currentModel || 'N/A'}</strong></p>
           <p>Version: <strong>{evidence.modelRiskSummary.currentVersion || 'N/A'}</strong></p>
-          <p>Drift Detected: <span style={{ color: evidence.modelRiskSummary.driftDetected ? '#dc2626' : '#16a34a', fontWeight: 600 }}>{evidence.modelRiskSummary.driftDetected ? 'YES' : 'NO'}</span></p>
+          <p>Drift Detected: <span className={cn('font-semibold', evidence.modelRiskSummary.driftDetected ? 'text-red-600' : 'text-green-600')}>{evidence.modelRiskSummary.driftDetected ? 'YES' : 'NO'}</span></p>
           <p>PSI Score: <strong>{evidence.modelRiskSummary.psiScore?.toFixed(4) ?? 'N/A'}</strong></p>
         </div>
       ))}
@@ -148,8 +158,8 @@ const RegulatoryEvidence = () => {
       {renderSection('security', 'Security Scan Summary', (
         <div>
           <p>Last Scan: <strong>{evidence.securityScanSummary.lastScanDate}</strong></p>
-          <div style={styles.row}><span>Critical</span><strong style={{ color: evidence.securityScanSummary.criticalFindings > 0 ? '#dc2626' : '#16a34a' }}>{evidence.securityScanSummary.criticalFindings}</strong></div>
-          <div style={styles.row}><span>High</span><strong style={{ color: evidence.securityScanSummary.highFindings > 0 ? '#dc2626' : '#16a34a' }}>{evidence.securityScanSummary.highFindings}</strong></div>
+          <div className="flex justify-between py-1 border-b border-border"><span>Critical</span><strong className={evidence.securityScanSummary.criticalFindings > 0 ? 'text-red-600' : 'text-green-600'}>{evidence.securityScanSummary.criticalFindings}</strong></div>
+          <div className="flex justify-between py-1 border-b border-border"><span>High</span><strong className={evidence.securityScanSummary.highFindings > 0 ? 'text-red-600' : 'text-green-600'}>{evidence.securityScanSummary.highFindings}</strong></div>
         </div>
       ))}
 
@@ -160,29 +170,14 @@ const RegulatoryEvidence = () => {
       {renderSection('failover', 'Provider Failover Drill', (
         <div>
           <p>Last Drill: <strong>{evidence.failoverDrillReport.lastDrillDate || 'Never'}</strong></p>
-          <p>Overall: <span style={{ color: evidence.failoverDrillReport.success ? '#16a34a' : '#dc2626', fontWeight: 600 }}>{evidence.failoverDrillReport.success ? 'PASS' : 'FAIL'}</span></p>
+          <p>Overall: <span className={cn('font-semibold', evidence.failoverDrillReport.success ? 'text-green-600' : 'text-red-600')}>{evidence.failoverDrillReport.success ? 'PASS' : 'FAIL'}</span></p>
           {evidence.failoverDrillReport.steps.map((s) => (
-            <div key={s.name} style={styles.row}><span>{s.name}</span><span style={{ color: s.passed ? '#16a34a' : '#dc2626' }}>{s.passed ? 'PASS' : 'FAIL'}</span></div>
+            <div key={s.name} className="flex justify-between py-1 border-b border-border"><span>{s.name}</span><span className={s.passed ? 'text-green-600' : 'text-red-600'}>{s.passed ? 'PASS' : 'FAIL'}</span></div>
           ))}
         </div>
       ))}
     </div>
   );
-};
-
-const styles: Record<string, CSSProperties> = {
-  container: { padding: '0' },
-  heading: { margin: '0 0 1.5rem 0', fontSize: '1.5rem', fontWeight: 700 },
-  dateRange: { display: 'flex', gap: '1rem', marginBottom: '1rem' },
-  dateLabel: { fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' },
-  dateInput: { padding: '0.4rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '0.85rem' },
-  generatedAt: { fontSize: '0.8rem', color: '#94a3b8', marginBottom: '1.5rem' },
-  section: { backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', marginBottom: '0.75rem', overflow: 'hidden' },
-  sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', cursor: 'pointer' },
-  sectionTitle: { margin: 0, fontSize: '1rem', fontWeight: 600 },
-  expandIcon: { fontSize: '1.2rem', fontWeight: 700, color: '#6b7280' },
-  sectionContent: { padding: '0 1.25rem 1rem 1.25rem', fontSize: '0.85rem', lineHeight: 1.6 },
-  row: { display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0', borderBottom: '1px solid var(--color-border)' },
 };
 
 export default RegulatoryEvidence;

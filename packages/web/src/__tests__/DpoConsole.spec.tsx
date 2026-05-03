@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import DpoConsole from '../pages/compliance/DpoConsole';
@@ -47,10 +47,14 @@ describe('DpoConsole Page (FR-120.A5)', () => {
     expect(screen.getAllByText('Consent Management').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('should switch to evidence tab on click', () => {
+  it('should switch to evidence tab on click', async () => {
     renderPage();
-    fireEvent.click(screen.getByTestId('tab-evidence'));
-    expect(screen.getByTestId('evidence-panel')).toBeDefined();
-    expect(screen.getByText('Generate Regulatory Evidence Pack')).toBeDefined();
+    const evidenceTab = screen.getByTestId('tab-evidence');
+    // Radix TabsTrigger activates on mouseDown (not click)
+    fireEvent.mouseDown(evidenceTab, { button: 0 });
+    await waitFor(() => {
+      expect(screen.getByTestId('evidence-panel')).toBeDefined();
+      expect(screen.getByText('Generate Regulatory Evidence Pack')).toBeDefined();
+    });
   });
 });

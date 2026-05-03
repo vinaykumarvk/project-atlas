@@ -46,7 +46,7 @@ describe('LlmModeBanner', () => {
     await waitFor(() => {
       expect(screen.getByTestId('llm-mode-banner')).toBeTruthy();
     });
-    fireEvent.click(screen.getByText('\u00d7'));
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
     expect(screen.queryByTestId('llm-mode-banner')).toBeNull();
   });
 });

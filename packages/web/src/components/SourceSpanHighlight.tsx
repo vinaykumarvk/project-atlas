@@ -1,9 +1,8 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface SourceSpanHighlightProps {
-  /** The text to display */
   children: ReactNode;
-  /** Label shown in the tooltip (default "Source") */
   sourceLabel?: string;
 }
 
@@ -17,47 +16,21 @@ export function SourceSpanHighlight({
   children,
   sourceLabel = 'Source',
 }: SourceSpanHighlightProps) {
-  const [hovered, setHovered] = useState(false);
-
-  const baseStyle: CSSProperties = {
-    position: 'relative',
-    display: 'inline',
-    cursor: 'default',
-    borderRadius: '2px',
-    transition: 'background-color 0.15s',
-    backgroundColor: hovered ? '#fef08a' : 'transparent',
-  };
-
-  const tooltipStyle: CSSProperties = {
-    position: 'absolute',
-    bottom: '100%',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    padding: '0.2rem 0.5rem',
-    borderRadius: '4px',
-    backgroundColor: '#1e293b',
-    color: '#fff',
-    fontSize: '0.7rem',
-    fontWeight: 600,
-    whiteSpace: 'nowrap',
-    pointerEvents: 'none',
-    marginBottom: '4px',
-    zIndex: 10,
-  };
-
   return (
-    <span
-      style={baseStyle}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      data-testid="source-span"
-    >
-      {children}
-      {hovered && (
-        <span style={tooltipStyle} data-testid="source-tooltip">
-          {sourceLabel}
-        </span>
-      )}
-    </span>
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className="inline cursor-default rounded-sm transition-colors hover:bg-yellow-200 dark:hover:bg-yellow-800/50"
+            data-testid="source-span"
+          >
+            {children}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent data-testid="source-tooltip">
+          <p className="text-xs font-semibold">{sourceLabel}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

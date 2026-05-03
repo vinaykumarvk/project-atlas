@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -109,7 +109,7 @@ describe('CaseList filter URL serialization (FR-050.A3)', () => {
     promptSpy.mockRestore();
   });
 
-  it('loads saved view when selected from dropdown', () => {
+  it('loads saved view when selected from dropdown', async () => {
     // Pre-populate localStorage with a saved view
     localStorage.setItem('atlas_saved_views', JSON.stringify([
       { name: 'P1 Only', filters: { priority: 'P1', search: 'Urgent' } },
@@ -120,8 +120,15 @@ describe('CaseList filter URL serialization (FR-050.A3)', () => {
     const loadSelect = screen.getByTestId('load-view-select');
     expect(loadSelect).toBeInTheDocument();
 
-    // Select the saved view
-    fireEvent.change(loadSelect, { target: { value: 'P1 Only' } });
+    // The Load View dropdown is now a Radix Select (shadcn/ui).
+    // Click the trigger to open the popover, then select the option.
+    fireEvent.click(loadSelect);
+
+    // Radix renders options in a portal; find the option by role
+    await waitFor(() => {
+      const option = screen.getByRole('option', { name: 'P1 Only' });
+      fireEvent.click(option);
+    });
 
     // The search input should now have "Urgent"
     const searchInput = screen.getByTestId('case-search-input');

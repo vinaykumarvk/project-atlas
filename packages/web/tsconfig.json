@@ -15,8 +15,10 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
     "paths": {
-      "@atlas/shared": ["../shared/src"]
+      "@atlas/shared": ["../shared/src"],
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"]

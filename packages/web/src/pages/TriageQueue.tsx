@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { CaseStatusBadge } from '../components/CaseStatusBadge';
 import { PriorityIndicator, type Priority } from '../components/PriorityIndicator';
 import { AccountabilityBanner } from '../components/AccountabilityBanner';
@@ -12,6 +12,18 @@ import {
   useConfirmTriage,
   useCorrectTriage,
 } from '../hooks/useTriageQueue';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
 
 interface TriageCase {
   id: string;
@@ -102,7 +114,7 @@ const CATEGORY_OPTIONS = [
 ];
 
 // ---------------------------------------------------------------------------
-// Triage card — used for both demo and live modes
+// Triage card -- used for both demo and live modes
 // ---------------------------------------------------------------------------
 
 const CaseDetailPanel = ({
@@ -127,107 +139,121 @@ const CaseDetailPanel = ({
   const [overrideSubCategory, setOverrideSubCategory] = useState(triageCase.suggestedSubCategory);
 
   return (
-    <div style={styles.triageCard}>
-      <div style={styles.triageHeader}>
-        <div style={styles.triageHeaderLeft}>
-          <strong>{triageCase.caseNumber}</strong>
-          <PriorityIndicator priority={triageCase.priority} />
-          <span
-            style={getConfidenceBadgeStyle(triageCase.confidenceBand)}
-            aria-label={`Confidence: ${triageCase.confidenceBand} (${triageCase.confidenceBand === 'GREEN' ? 'high' : triageCase.confidenceBand === 'AMBER' ? 'medium' : 'low'})`}
-            role="status"
-          >
-            {triageCase.confidenceBand === 'GREEN' ? '\u2714 ' : triageCase.confidenceBand === 'AMBER' ? '\u26A0 ' : '\u2716 '}
-            {triageCase.confidenceBand} ({(triageCase.confidence * 100).toFixed(0)}%)
-          </span>
-        </div>
-        <span style={styles.receivedAt}>{triageCase.receivedAt}</span>
-      </div>
-
-      <h4 style={styles.triageSubject}>{triageCase.subject}</h4>
-
-      <div style={styles.snippetBox}>
-        <p style={styles.snippet}>{triageCase.emailSnippet}</p>
-      </div>
-
-      <div style={styles.classificationRow}>
-        <div style={styles.classificationDetail}>
-          <span style={styles.classLabel}>Suggested Classification:</span>
-          <span style={styles.classValue}>
-            {triageCase.suggestedCategory} &rarr; {triageCase.suggestedSubCategory}
-          </span>
-        </div>
-      </div>
-
-      <div style={styles.triageActions}>
-        <button
-          onClick={() => onApprove(triageCase.id)}
-          disabled={isApproving}
-          style={{ ...styles.triageButton, backgroundColor: '#16a34a', color: '#fff' }}
-        >
-          {isApproving ? 'Confirming...' : 'Confirm Classification'}
-        </button>
-        <button
-          onClick={() => onReject(triageCase.id)}
-          style={{ ...styles.triageButton, backgroundColor: '#dc2626', color: '#fff' }}
-        >
-          Reject
-        </button>
-        <button
-          onClick={() => setShowOverride(!showOverride)}
-          style={{ ...styles.triageButton, backgroundColor: '#6366f1', color: '#fff' }}
-        >
-          Correct
-        </button>
-        {triageCase.fuzzyMatches && triageCase.fuzzyMatches.length > 0 && onDisambiguate && (
-          <button
-            onClick={() => {
-              const fm = triageCase.fuzzyMatches![0];
-              onDisambiguate(triageCase.id, fm.fieldName, fm.rawValue, fm.candidates);
-            }}
-            style={{ ...styles.triageButton, backgroundColor: '#f59e0b', color: '#fff' }}
-          >
-            Disambiguate ({triageCase.fuzzyMatches.length})
-          </button>
-        )}
-      </div>
-
-      {showOverride && (
-        <div style={styles.overrideForm}>
-          <h5 style={styles.overrideTitle}>Correct Classification</h5>
-          <div style={styles.overrideFields}>
-            <div style={styles.overrideField}>
-              <label style={styles.overrideLabel}>Category</label>
-              <select
-                value={overrideCategory}
-                onChange={(e) => setOverrideCategory(e.target.value)}
-                style={styles.overrideSelect}
-              >
-                {CATEGORY_OPTIONS.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-            <div style={styles.overrideField}>
-              <label style={styles.overrideLabel}>Sub-Category</label>
-              <input
-                type="text"
-                value={overrideSubCategory}
-                onChange={(e) => setOverrideSubCategory(e.target.value)}
-                style={styles.overrideInput}
-              />
-            </div>
-            <button
-              onClick={() => onOverride(triageCase.id, overrideCategory, overrideSubCategory)}
-              disabled={isOverriding}
-              style={{ ...styles.triageButton, backgroundColor: '#6366f1', color: '#fff' }}
+    <Card>
+      <CardContent className="p-5">
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <strong>{triageCase.caseNumber}</strong>
+            <PriorityIndicator priority={triageCase.priority} />
+            <Badge
+              variant="secondary"
+              className={cn(
+                'rounded text-[0.7rem] font-bold',
+                triageCase.confidenceBand === 'RED'
+                  ? 'bg-red-100 text-red-600'
+                  : 'bg-amber-100 text-amber-800',
+              )}
+              aria-label={`Confidence: ${triageCase.confidenceBand} (${triageCase.confidenceBand === 'GREEN' ? 'high' : triageCase.confidenceBand === 'AMBER' ? 'medium' : 'low'})`}
+              role="status"
             >
-              {isOverriding ? 'Submitting...' : 'Submit Correction'}
-            </button>
+              {triageCase.confidenceBand === 'GREEN' ? '\u2714 ' : triageCase.confidenceBand === 'AMBER' ? '\u26A0 ' : '\u2716 '}
+              {triageCase.confidenceBand} ({(triageCase.confidence * 100).toFixed(0)}%)
+            </Badge>
+          </div>
+          <span className="text-xs text-slate-400">{triageCase.receivedAt}</span>
+        </div>
+
+        <h4 className="mb-3 text-base font-semibold">{triageCase.subject}</h4>
+
+        <div className="mb-3 rounded-md border bg-slate-50 p-3">
+          <p className="text-sm italic leading-relaxed text-slate-600">{triageCase.emailSnippet}</p>
+        </div>
+
+        <div className="mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500">Suggested Classification:</span>
+            <span className="text-sm font-semibold">
+              {triageCase.suggestedCategory} &rarr; {triageCase.suggestedSubCategory}
+            </span>
           </div>
         </div>
-      )}
-    </div>
+
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={() => onApprove(triageCase.id)}
+            disabled={isApproving}
+            className="bg-green-600 text-white hover:bg-green-700"
+          >
+            {isApproving ? 'Confirming...' : 'Confirm Classification'}
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => onReject(triageCase.id)}
+          >
+            Reject
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setShowOverride(!showOverride)}
+            className="bg-indigo-500 text-white hover:bg-indigo-600"
+          >
+            Correct
+          </Button>
+          {triageCase.fuzzyMatches && triageCase.fuzzyMatches.length > 0 && onDisambiguate && (
+            <Button
+              size="sm"
+              onClick={() => {
+                const fm = triageCase.fuzzyMatches![0];
+                onDisambiguate(triageCase.id, fm.fieldName, fm.rawValue, fm.candidates);
+              }}
+              className="bg-amber-500 text-white hover:bg-amber-600"
+            >
+              Disambiguate ({triageCase.fuzzyMatches.length})
+            </Button>
+          )}
+        </div>
+
+        {showOverride && (
+          <div className="mt-4 rounded-md border bg-slate-50 p-4">
+            <h5 className="mb-3 text-sm font-semibold">Correct Classification</h5>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-500">Category</label>
+                <Select value={overrideCategory} onValueChange={setOverrideCategory}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORY_OPTIONS.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-500">Sub-Category</label>
+                <Input
+                  type="text"
+                  value={overrideSubCategory}
+                  onChange={(e) => setOverrideSubCategory(e.target.value)}
+                  className="w-[200px]"
+                />
+              </div>
+              <Button
+                size="sm"
+                onClick={() => onOverride(triageCase.id, overrideCategory, overrideSubCategory)}
+                disabled={isOverriding}
+                className="bg-indigo-500 text-white hover:bg-indigo-600"
+              >
+                {isOverriding ? 'Submitting...' : 'Submit Correction'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
@@ -240,7 +266,7 @@ const TriageQueuePage = () => {
   const [demoCases, setDemoCases] = useState(MOCK_TRIAGE_CASES);
   const [disambiguation, setDisambiguation] = useState<DisambiguationState | null>(null);
 
-  // Live data hooks — called unconditionally
+  // Live data hooks -- called unconditionally
   const { data: liveCases, isLoading, isError, error } = useTriageQueue();
   const confirmTriage = useConfirmTriage();
   const correctTriage = useCorrectTriage();
@@ -305,10 +331,10 @@ const TriageQueuePage = () => {
   if (!demo && isLoading) {
     return (
       <div>
-        <h2 style={styles.heading}>Triage Queue</h2>
-        <div style={styles.placeholderBox}>
-          <div style={styles.spinner} />
-          <p style={styles.placeholderText}>Loading triage queue...</p>
+        <h2 className="text-2xl font-bold">Triage Queue</h2>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-card p-16 text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-[3px] border-border border-t-blue-500" />
+          <p className="max-w-[480px] text-sm leading-relaxed text-slate-400">Loading triage queue...</p>
         </div>
       </div>
     );
@@ -318,20 +344,21 @@ const TriageQueuePage = () => {
   if (!demo && isError) {
     return (
       <div>
-        <h2 style={styles.heading}>Triage Queue</h2>
-        <div style={{ ...styles.placeholderBox, borderColor: '#fecaca' }}>
-          <h3 style={{ ...styles.placeholderTitle, color: '#dc2626' }}>
+        <h2 className="text-2xl font-bold">Triage Queue</h2>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-red-200 bg-card p-16 text-center">
+          <h3 className="mb-2 text-lg font-semibold text-red-600">
             Failed to load triage queue
           </h3>
-          <p style={styles.placeholderText}>
+          <p className="max-w-[480px] text-sm leading-relaxed text-slate-400">
             {error instanceof Error ? error.message : 'An unexpected error occurred.'}
           </p>
-          <button
+          <Button
+            variant="outline"
+            className="mt-4"
             onClick={() => window.location.reload()}
-            style={styles.retryButton}
           >
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -355,23 +382,23 @@ const TriageQueuePage = () => {
       {/* Accountability Banner */}
       <AccountabilityBanner />
 
-      <div style={styles.pageHeader}>
-        <h2 style={styles.heading}>Triage Queue</h2>
+      <div className="mb-3 flex items-center gap-3">
+        <h2 className="text-2xl font-bold">Triage Queue</h2>
         <CaseStatusBadge status="TRIAGED" />
-        <span style={styles.queueCount}>{cases.length} cases pending review</span>
+        <span className="ml-auto text-sm text-slate-500">{cases.length} cases pending review</span>
       </div>
 
-      <p style={styles.description}>
+      <p className="mb-6 text-sm leading-relaxed text-slate-500">
         Cases below have been classified with AMBER or RED confidence and require manual review.
         Approve the suggested classification, reject it, or override with a correct classification.
       </p>
 
       {cases.length === 0 ? (
-        <div style={styles.emptyState}>
+        <Card className="p-12 text-center text-slate-400">
           <p>All cases have been triaged. No items pending review.</p>
-        </div>
+        </Card>
       ) : (
-        <div style={styles.triageList}>
+        <div className="flex flex-col gap-4">
           {cases.map((c) => (
             <CaseDetailPanel
               key={c.id}
@@ -388,212 +415,6 @@ const TriageQueuePage = () => {
       )}
     </div>
   );
-};
-
-const getConfidenceBadgeStyle = (band: string): CSSProperties => ({
-  display: 'inline-block',
-  padding: '0.2rem 0.5rem',
-  borderRadius: '4px',
-  fontSize: '0.7rem',
-  fontWeight: 700,
-  backgroundColor: band === 'RED' ? '#fee2e2' : '#fef3c7',
-  color: band === 'RED' ? '#dc2626' : '#92400e',
-});
-
-const styles: Record<string, CSSProperties> = {
-  pageHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    marginBottom: '0.75rem',
-  },
-  heading: {
-    margin: 0,
-    fontSize: '1.5rem',
-    fontWeight: 700,
-  },
-  queueCount: {
-    fontSize: '0.85rem',
-    color: '#64748b',
-    marginLeft: 'auto',
-  },
-  description: {
-    fontSize: '0.875rem',
-    color: '#64748b',
-    marginBottom: '1.5rem',
-    lineHeight: 1.5,
-  },
-  triageList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-  },
-  triageCard: {
-    backgroundColor: 'var(--color-surface)',
-    border: '1px solid var(--color-border)',
-    borderRadius: '8px',
-    padding: '1.25rem',
-  },
-  triageHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '0.5rem',
-  },
-  triageHeaderLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-  },
-  confidenceBadge: {
-    display: 'inline-block',
-    padding: '0.2rem 0.5rem',
-    borderRadius: '4px',
-    fontSize: '0.7rem',
-    fontWeight: 700,
-  },
-  receivedAt: {
-    fontSize: '0.75rem',
-    color: '#94a3b8',
-  },
-  triageSubject: {
-    margin: '0 0 0.75rem 0',
-    fontSize: '1rem',
-    fontWeight: 600,
-  },
-  snippetBox: {
-    backgroundColor: '#f8fafc',
-    border: '1px solid var(--color-border)',
-    borderRadius: '6px',
-    padding: '0.75rem',
-    marginBottom: '0.75rem',
-  },
-  snippet: {
-    margin: 0,
-    fontSize: '0.85rem',
-    color: '#475569',
-    fontStyle: 'italic',
-    lineHeight: 1.5,
-  },
-  classificationRow: {
-    marginBottom: '0.75rem',
-  },
-  classificationDetail: {
-    display: 'flex',
-    gap: '0.5rem',
-    alignItems: 'center',
-  },
-  classLabel: {
-    fontSize: '0.8rem',
-    color: '#64748b',
-  },
-  classValue: {
-    fontSize: '0.85rem',
-    fontWeight: 600,
-  },
-  triageActions: {
-    display: 'flex',
-    gap: '0.5rem',
-  },
-  triageButton: {
-    padding: '0.5rem 1rem',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '0.8rem',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  overrideForm: {
-    marginTop: '1rem',
-    padding: '1rem',
-    backgroundColor: '#f8fafc',
-    borderRadius: '6px',
-    border: '1px solid var(--color-border)',
-  },
-  overrideTitle: {
-    margin: '0 0 0.75rem 0',
-    fontSize: '0.9rem',
-  },
-  overrideFields: {
-    display: 'flex',
-    gap: '0.75rem',
-    alignItems: 'flex-end',
-    flexWrap: 'wrap',
-  },
-  overrideField: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.25rem',
-  },
-  overrideLabel: {
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    color: '#64748b',
-  },
-  overrideSelect: {
-    padding: '0.5rem 0.75rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '4px',
-    fontSize: '0.85rem',
-  },
-  overrideInput: {
-    padding: '0.5rem 0.75rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '4px',
-    fontSize: '0.85rem',
-    width: '200px',
-  },
-  emptyState: {
-    textAlign: 'center',
-    padding: '3rem',
-    color: '#94a3b8',
-    backgroundColor: 'var(--color-surface)',
-    borderRadius: '8px',
-    border: '1px solid var(--color-border)',
-  },
-  placeholderBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '4rem 2rem',
-    border: '1px dashed var(--color-border)',
-    borderRadius: '8px',
-    backgroundColor: 'var(--color-surface)',
-    textAlign: 'center',
-  },
-  placeholderTitle: {
-    margin: '0 0 0.5rem 0',
-    fontSize: '1.1rem',
-    fontWeight: 600,
-    color: '#475569',
-  },
-  placeholderText: {
-    margin: 0,
-    fontSize: '0.875rem',
-    color: '#94a3b8',
-    maxWidth: '480px',
-    lineHeight: 1.5,
-  },
-  spinner: {
-    width: '32px',
-    height: '32px',
-    border: '3px solid var(--color-border)',
-    borderTop: '3px solid var(--color-accent, #3b82f6)',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
-    marginBottom: '1rem',
-  },
-  retryButton: {
-    marginTop: '1rem',
-    padding: '0.5rem 1.25rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '6px',
-    backgroundColor: 'var(--color-bg)',
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-    fontWeight: 500,
-  },
 };
 
 export default TriageQueuePage;

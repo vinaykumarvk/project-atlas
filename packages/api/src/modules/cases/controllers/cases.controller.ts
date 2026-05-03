@@ -266,6 +266,11 @@ export class CasesController {
   @ApiResponse({ status: 200, description: 'Case detail' })
   @ApiResponse({ status: 404, description: 'Case not found' })
   async getCaseById(@Param('id') id: string) {
+    // Validate UUID format to prevent Prisma errors
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new NotFoundException(`Case not found: ${id}`);
+    }
     const caseRecord = await this.caseCreationService.findById(id);
     if (!caseRecord) {
       throw new NotFoundException(`Case not found: ${id}`);

@@ -122,8 +122,8 @@ describe('Dashboard Workload Forecast (FR-112.A3)', () => {
       renderWithProviders(<DashboardPage />);
 
       const trendIndicator = screen.getByTestId('forecast-trend');
-      // INCREASING trend should be red (#dc2626)
-      expect(trendIndicator.style.color).toBe('rgb(220, 38, 38)');
+      // INCREASING trend should use the Tailwind text-red-600 class
+      expect(trendIndicator.className).toContain('text-red-600');
     });
   });
 });

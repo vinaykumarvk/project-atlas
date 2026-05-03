@@ -1,35 +1,54 @@
-import type { CSSProperties } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 export type CaseStatus =
   | 'NEW'
+  | 'CLASSIFIED'
   | 'TRIAGED'
+  | 'ROUTED'
   | 'IN_PROGRESS'
+  | 'AWAITING_FPR'
   | 'PENDING_VENDOR'
   | 'PENDING_INFO'
+  | 'ON_HOLD'
+  | 'REVIEW'
   | 'RESOLVED'
   | 'CLOSED'
-  | 'REOPENED';
+  | 'REOPENED'
+  | 'CANCELLED';
 
-const STATUS_COLORS: Record<CaseStatus, { bg: string; text: string }> = {
-  NEW: { bg: '#dbeafe', text: '#1e40af' },
-  TRIAGED: { bg: '#e0e7ff', text: '#3730a3' },
-  IN_PROGRESS: { bg: '#fef3c7', text: '#92400e' },
-  PENDING_VENDOR: { bg: '#fce7f3', text: '#9d174d' },
-  PENDING_INFO: { bg: '#f3e8ff', text: '#6b21a8' },
-  RESOLVED: { bg: '#d1fae5', text: '#065f46' },
-  CLOSED: { bg: '#f1f5f9', text: '#475569' },
-  REOPENED: { bg: '#fef9c3', text: '#854d0e' },
+const STATUS_STYLES: Record<string, string> = {
+  NEW: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
+  CLASSIFIED: 'bg-indigo-100 text-indigo-800 hover:bg-indigo-100',
+  TRIAGED: 'bg-indigo-100 text-indigo-800 hover:bg-indigo-100',
+  ROUTED: 'bg-violet-100 text-violet-800 hover:bg-violet-100',
+  IN_PROGRESS: 'bg-amber-100 text-amber-800 hover:bg-amber-100',
+  AWAITING_FPR: 'bg-pink-100 text-pink-800 hover:bg-pink-100',
+  PENDING_VENDOR: 'bg-pink-100 text-pink-800 hover:bg-pink-100',
+  PENDING_INFO: 'bg-purple-100 text-purple-800 hover:bg-purple-100',
+  ON_HOLD: 'bg-slate-100 text-slate-600 hover:bg-slate-100',
+  REVIEW: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
+  RESOLVED: 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100',
+  CLOSED: 'bg-slate-100 text-slate-600 hover:bg-slate-100',
+  REOPENED: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
+  CANCELLED: 'bg-red-100 text-red-800 hover:bg-red-100',
 };
 
-const STATUS_LABELS: Record<CaseStatus, string> = {
+const STATUS_LABELS: Record<string, string> = {
   NEW: 'New',
+  CLASSIFIED: 'Classified',
   TRIAGED: 'Triaged',
+  ROUTED: 'Routed',
   IN_PROGRESS: 'In Progress',
+  AWAITING_FPR: 'Awaiting FPR',
   PENDING_VENDOR: 'Pending Vendor',
   PENDING_INFO: 'Pending Info',
+  ON_HOLD: 'On Hold',
+  REVIEW: 'Review',
   RESOLVED: 'Resolved',
   CLOSED: 'Closed',
   REOPENED: 'Reopened',
+  CANCELLED: 'Cancelled',
 };
 
 interface CaseStatusBadgeProps {
@@ -37,20 +56,12 @@ interface CaseStatusBadgeProps {
 }
 
 export function CaseStatusBadge({ status }: CaseStatusBadgeProps) {
-  const colors = STATUS_COLORS[status] || STATUS_COLORS.NEW;
+  const style = STATUS_STYLES[status] || STATUS_STYLES.NEW;
   const label = STATUS_LABELS[status] || status;
 
-  const style: CSSProperties = {
-    display: 'inline-block',
-    padding: '0.25rem 0.625rem',
-    borderRadius: '9999px',
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    backgroundColor: colors.bg,
-    color: colors.text,
-    textTransform: 'uppercase',
-    letterSpacing: '0.025em',
-  };
-
-  return <span style={style}>{label}</span>;
+  return (
+    <Badge variant="secondary" className={cn('uppercase tracking-wide font-semibold', style)}>
+      {label}
+    </Badge>
+  );
 }

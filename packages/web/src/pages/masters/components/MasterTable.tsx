@@ -1,4 +1,14 @@
 import { useState } from 'react';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface MasterTableProps {
   masterKey: string;
@@ -56,45 +66,53 @@ export function MasterTable({ masterKey, onEdit }: MasterTableProps) {
   );
 
   return (
-    <div className="master-table-container">
-      <div className="table-toolbar">
-        <input
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Input
           type="search"
           placeholder="Search records..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="table-search"
+          className="max-w-sm"
         />
-        <span className="record-count">{filtered.length} records</span>
+        <span className="text-sm text-muted-foreground">{filtered.length} records</span>
       </div>
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            {columns.map((col) => (
-              <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
-            ))}
-            <th>ACTIONS</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.map((row, idx) => (
-            <tr key={idx}>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
               {columns.map((col) => (
-                <td key={col}>
-                  {typeof row[col] === 'boolean'
-                    ? row[col] ? 'Yes' : 'No'
-                    : String(row[col])}
-                </td>
+                <TableHead key={col}>{col.replace(/_/g, ' ').toUpperCase()}</TableHead>
               ))}
-              <td>
-                <button className="btn-sm" onClick={() => onEdit(row)}>Edit</button>
-                <button className="btn-sm btn-ghost">History</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              <TableHead>ACTIONS</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((row, idx) => (
+              <TableRow key={idx}>
+                {columns.map((col) => (
+                  <TableCell key={col}>
+                    {typeof row[col] === 'boolean'
+                      ? row[col] ? 'Yes' : 'No'
+                      : String(row[col])}
+                  </TableCell>
+                ))}
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" onClick={() => onEdit(row)}>
+                      Edit
+                    </Button>
+                    <Button variant="ghost" size="sm">
+                      History
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

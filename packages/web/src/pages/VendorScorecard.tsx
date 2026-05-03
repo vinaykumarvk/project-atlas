@@ -1,7 +1,19 @@
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { isDemoMode } from '../config/flags';
 import { useVendorScorecard, useVendorList } from '../hooks/useCollateralOps';
 import type { VendorScorecard as VendorScorecardType, VendorSummary } from '../hooks/useCollateralOps';
+import { cn } from '@/lib/utils';
+import { Card, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Building2 } from 'lucide-react';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
 
 // ---------------------------------------------------------------------------
 // Mock data for demo mode
@@ -63,48 +75,58 @@ const VendorScorecardPage = () => {
   const isLoading = !demo && (vendorsLoading || (selectedVendorId && scorecardLoading));
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>Vendor Scorecard</h2>
+    <div>
+      <h2 className="mb-6 text-2xl font-bold">Vendor Scorecard</h2>
 
       {/* Vendor Selection */}
-      <div style={styles.searchBar}>
-        <label htmlFor="vendor-select" style={styles.label}>Select Vendor:</label>
-        <select
-          id="vendor-select"
-          value={selectedVendorId}
-          onChange={(e) => setSelectedVendorId(e.target.value)}
-          style={styles.select}
-        >
-          <option value="">-- Choose a vendor --</option>
-          {vendors.map((v) => (
-            <option key={v.vendorId} value={v.vendorId}>
-              {v.vendorName} ({v.vendorCode}) - {v.category}
-            </option>
-          ))}
-        </select>
+      <div className="flex items-center gap-3 mb-6">
+        <label className="text-sm font-semibold">Select Vendor:</label>
+        <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
+          <SelectTrigger className="min-w-[300px]">
+            <SelectValue placeholder="-- Choose a vendor --" />
+          </SelectTrigger>
+          <SelectContent>
+            {vendors.map((v) => (
+              <SelectItem key={v.vendorId} value={v.vendorId}>
+                {v.vendorName} ({v.vendorCode}) - {v.category}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Loading */}
       {isLoading && (
-        <div style={styles.placeholder}>
-          <div style={styles.spinner} />
-          <p style={styles.placeholderText}>Loading scorecard...</p>
+        <div className="flex flex-col items-center justify-center p-16 border border-dashed rounded-lg bg-card text-center">
+          <div className="w-8 h-8 border-3 border-border border-t-blue-500 rounded-full animate-spin mb-4" />
+          <p className="text-sm text-muted-foreground max-w-[480px] leading-relaxed">Loading scorecard...</p>
         </div>
       )}
 
       {/* Error */}
       {!demo && isError && selectedVendorId && (
-        <div style={{ ...styles.placeholder, borderColor: '#fecaca' }}>
-          <p style={{ ...styles.placeholderText, color: '#dc2626' }}>
+        <div className="flex flex-col items-center justify-center p-16 border border-dashed border-red-200 rounded-lg bg-card text-center">
+          <p className="text-sm text-red-600 max-w-[480px] leading-relaxed">
             {error instanceof Error ? error.message : 'Failed to load scorecard'}
           </p>
         </div>
       )}
 
+      {/* Empty — no vendors */}
+      {!isLoading && vendors.length === 0 && (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center py-16 text-center">
+            <Building2 className="mb-4 h-12 w-12 text-muted-foreground/50" />
+            <h3 className="mb-2 text-lg font-semibold">No vendors found</h3>
+            <p className="text-sm text-muted-foreground">Vendor data will appear once vendors are configured.</p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* No selection */}
-      {!selectedVendorId && !isLoading && (
-        <div style={styles.placeholder}>
-          <p style={styles.placeholderText}>Select a vendor above to view their performance scorecard.</p>
+      {!selectedVendorId && !isLoading && vendors.length > 0 && (
+        <div className="flex flex-col items-center justify-center p-16 border border-dashed rounded-lg bg-card text-center">
+          <p className="text-sm text-muted-foreground max-w-[480px] leading-relaxed">Select a vendor above to view their performance scorecard.</p>
         </div>
       )}
 
@@ -112,150 +134,123 @@ const VendorScorecardPage = () => {
       {scorecard && !isLoading && (
         <div>
           {/* Header */}
-          <div style={styles.scorecardHeader}>
+          <div className="mb-6">
             <div>
-              <h3 style={styles.vendorName}>{scorecard.vendorName}</h3>
-              <span style={styles.vendorMeta}>{scorecard.vendorCode} | {scorecard.category}</span>
+              <h3 className="mb-1 text-xl font-bold">{scorecard.vendorName}</h3>
+              <span className="text-sm text-slate-500">{scorecard.vendorCode} | {scorecard.category}</span>
             </div>
           </div>
 
           {/* Metric Cards */}
-          <div style={styles.metricsGrid}>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4 mb-6">
             <MetricCard
               title="TAT Compliance"
               value={`${typeof scorecard.tatCompliancePercent === 'number' && scorecard.tatCompliancePercent <= 1 ? Math.round(scorecard.tatCompliancePercent * 100) : Math.round(scorecard.tatCompliancePercent)}%`}
-              color={scorecard.tatCompliancePercent >= 0.85 || scorecard.tatCompliancePercent >= 85 ? '#16a34a' : scorecard.tatCompliancePercent >= 0.7 || scorecard.tatCompliancePercent >= 70 ? '#ca8a04' : '#dc2626'}
+              colorClass={scorecard.tatCompliancePercent >= 0.85 || scorecard.tatCompliancePercent >= 85 ? 'text-green-600' : scorecard.tatCompliancePercent >= 0.7 || scorecard.tatCompliancePercent >= 70 ? 'text-yellow-600' : 'text-red-600'}
             />
             <MetricCard
               title="Quality Score"
               value={`${scorecard.qualityScore.toFixed(1)} / 5.0`}
-              color={scorecard.qualityScore >= 4.0 ? '#16a34a' : scorecard.qualityScore >= 3.0 ? '#ca8a04' : '#dc2626'}
+              colorClass={scorecard.qualityScore >= 4.0 ? 'text-green-600' : scorecard.qualityScore >= 3.0 ? 'text-yellow-600' : 'text-red-600'}
             />
             <MetricCard
               title="Rework Rate"
               value={`${scorecard.reworkRate.toFixed(1)}%`}
-              color={scorecard.reworkRate <= 1.0 ? '#16a34a' : scorecard.reworkRate <= 2.0 ? '#ca8a04' : '#dc2626'}
+              colorClass={scorecard.reworkRate <= 1.0 ? 'text-green-600' : scorecard.reworkRate <= 2.0 ? 'text-yellow-600' : 'text-red-600'}
             />
             <MetricCard
               title="Variance from Estimates"
               value={`${(scorecard.varianceFromEstimates * 100).toFixed(0)}%`}
-              color={scorecard.varianceFromEstimates <= 0.1 ? '#16a34a' : scorecard.varianceFromEstimates <= 0.2 ? '#ca8a04' : '#dc2626'}
+              colorClass={scorecard.varianceFromEstimates <= 0.1 ? 'text-green-600' : scorecard.varianceFromEstimates <= 0.2 ? 'text-yellow-600' : 'text-red-600'}
             />
           </div>
 
           {/* Detail Info */}
-          <div style={styles.detailRow}>
-            <div style={styles.detailPanel}>
-              <h4 style={styles.panelTitle}>Operations Summary</h4>
-              <div style={styles.detailGrid}>
-                <div style={styles.detailItem}>
-                  <span style={styles.detailLabel}>Total Cases Handled</span>
-                  <span style={styles.detailValue}>{scorecard.totalCasesHandled}</span>
+          <div className="grid grid-cols-2 gap-5 mb-6">
+            <Card>
+              <CardContent className="p-5">
+                <h4 className="text-[0.95rem] font-semibold mb-4">Operations Summary</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[0.7rem] uppercase text-muted-foreground font-semibold">Total Cases Handled</span>
+                    <span className="text-sm">{scorecard.totalCasesHandled}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[0.7rem] uppercase text-muted-foreground font-semibold">Active Cases</span>
+                    <span className="text-sm">{scorecard.activeCases}</span>
+                  </div>
                 </div>
-                <div style={styles.detailItem}>
-                  <span style={styles.detailLabel}>Active Cases</span>
-                  <span style={styles.detailValue}>{scorecard.activeCases}</span>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <h4 className="text-[0.95rem] font-semibold mb-4">Service Coverage</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[0.7rem] uppercase text-muted-foreground font-semibold">Geographies</span>
+                    <span className="text-sm">{scorecard.serviceGeographies.join(', ') || 'None'}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[0.7rem] uppercase text-muted-foreground font-semibold">Case Types</span>
+                    <span className="text-sm">{scorecard.serviceCaseTypes.map((t) => t.replace(/_/g, ' ')).join(', ') || 'None'}</span>
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div style={styles.detailPanel}>
-              <h4 style={styles.panelTitle}>Service Coverage</h4>
-              <div style={styles.detailGrid}>
-                <div style={styles.detailItem}>
-                  <span style={styles.detailLabel}>Geographies</span>
-                  <span style={styles.detailValue}>{scorecard.serviceGeographies.join(', ') || 'None'}</span>
-                </div>
-                <div style={styles.detailItem}>
-                  <span style={styles.detailLabel}>Case Types</span>
-                  <span style={styles.detailValue}>{scorecard.serviceCaseTypes.map((t) => t.replace(/_/g, ' ')).join(', ') || 'None'}</span>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}
 
       {/* Vendor Summary Table */}
       {vendors.length > 0 && (
-        <div style={styles.tableSection}>
-          <h3 style={styles.sectionTitle}>All Vendors Overview</h3>
-          <div style={styles.tableContainer}>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Vendor</th>
-                  <th style={styles.th}>Code</th>
-                  <th style={styles.th}>Category</th>
-                  <th style={styles.th}>Quality Score</th>
-                  <th style={styles.th}>TAT Compliance</th>
-                </tr>
-              </thead>
-              <tbody>
+        <div className="mt-8">
+          <h3 className="mb-4 text-lg font-semibold">All Vendors Overview</h3>
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs uppercase whitespace-nowrap">Vendor</TableHead>
+                  <TableHead className="text-xs uppercase whitespace-nowrap">Code</TableHead>
+                  <TableHead className="text-xs uppercase whitespace-nowrap">Category</TableHead>
+                  <TableHead className="text-xs uppercase whitespace-nowrap">Quality Score</TableHead>
+                  <TableHead className="text-xs uppercase whitespace-nowrap">TAT Compliance</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {vendors.map((v) => (
-                  <tr
+                  <TableRow
                     key={v.vendorId}
                     onClick={() => setSelectedVendorId(v.vendorId)}
-                    style={{ ...styles.tr, backgroundColor: v.vendorId === selectedVendorId ? '#f0f9ff' : 'transparent' }}
+                    className={cn(
+                      'cursor-pointer transition-colors',
+                      v.vendorId === selectedVendorId && 'bg-blue-50'
+                    )}
                   >
-                    <td style={styles.td}><strong>{v.vendorName}</strong></td>
-                    <td style={styles.td}>{v.vendorCode}</td>
-                    <td style={styles.td}>{v.category}</td>
-                    <td style={styles.td}>{v.qualityScore.toFixed(1)}</td>
-                    <td style={styles.td}>{typeof v.tatCompliancePercent === 'number' && v.tatCompliancePercent <= 1 ? `${Math.round(v.tatCompliancePercent * 100)}%` : `${Math.round(v.tatCompliancePercent)}%`}</td>
-                  </tr>
+                    <TableCell className="whitespace-nowrap"><strong>{v.vendorName}</strong></TableCell>
+                    <TableCell className="whitespace-nowrap">{v.vendorCode}</TableCell>
+                    <TableCell className="whitespace-nowrap">{v.category}</TableCell>
+                    <TableCell className="whitespace-nowrap">{v.qualityScore.toFixed(1)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{typeof v.tatCompliancePercent === 'number' && v.tatCompliancePercent <= 1 ? `${Math.round(v.tatCompliancePercent * 100)}%` : `${Math.round(v.tatCompliancePercent)}%`}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </Card>
         </div>
       )}
     </div>
   );
 };
 
-function MetricCard({ title, value, color }: { title: string; value: string; color: string }) {
+function MetricCard({ title, value, colorClass }: { title: string; value: string; colorClass: string }) {
   return (
-    <div style={styles.metricCard}>
-      <span style={styles.metricTitle}>{title}</span>
-      <span style={{ ...styles.metricValue, color }}>{value}</span>
-    </div>
+    <Card>
+      <CardContent className="p-5 flex flex-col gap-2">
+        <span className="text-xs uppercase text-muted-foreground font-semibold">{title}</span>
+        <span className={cn('text-3xl font-bold', colorClass)}>{value}</span>
+      </CardContent>
+    </Card>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const styles: Record<string, CSSProperties> = {
-  container: { padding: 0 },
-  heading: { margin: '0 0 1.5rem 0', fontSize: '1.5rem', fontWeight: 700 },
-  searchBar: { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' },
-  label: { fontSize: '0.875rem', fontWeight: 600 },
-  select: { padding: '0.5rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: '6px', fontSize: '0.875rem', backgroundColor: 'var(--color-bg)', minWidth: '300px' },
-  scorecardHeader: { marginBottom: '1.5rem' },
-  vendorName: { margin: '0 0 0.25rem 0', fontSize: '1.25rem', fontWeight: 700 },
-  vendorMeta: { fontSize: '0.85rem', color: '#64748b' },
-  metricsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' },
-  metricCard: { backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' },
-  metricTitle: { fontSize: '0.75rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 600 },
-  metricValue: { fontSize: '1.75rem', fontWeight: 700 },
-  detailRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.5rem' },
-  detailPanel: { backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '1.25rem' },
-  panelTitle: { fontSize: '0.95rem', fontWeight: 600, margin: '0 0 1rem 0' },
-  detailGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' },
-  detailItem: { display: 'flex', flexDirection: 'column', gap: '0.2rem' },
-  detailLabel: { fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 600 },
-  detailValue: { fontSize: '0.875rem' },
-  tableSection: { marginTop: '2rem' },
-  sectionTitle: { margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: 600 },
-  tableContainer: { overflowX: 'auto', border: '1px solid var(--color-border)', borderRadius: '8px', backgroundColor: 'var(--color-surface)' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' },
-  th: { textAlign: 'left', padding: '0.75rem 1rem', borderBottom: '2px solid var(--color-border)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' },
-  tr: { cursor: 'pointer', transition: 'background-color 0.15s' },
-  td: { padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)', whiteSpace: 'nowrap' },
-  placeholder: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem', border: '1px dashed var(--color-border)', borderRadius: '8px', backgroundColor: 'var(--color-surface)', textAlign: 'center' },
-  placeholderText: { margin: 0, fontSize: '0.875rem', color: '#94a3b8', maxWidth: '480px', lineHeight: 1.5 },
-  spinner: { width: '32px', height: '32px', border: '3px solid var(--color-border)', borderTop: '3px solid var(--color-accent, #3b82f6)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginBottom: '1rem' },
-};
 
 export default VendorScorecardPage;

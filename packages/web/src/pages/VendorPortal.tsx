@@ -1,9 +1,30 @@
-import { useState, useMemo, type CSSProperties } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { CaseStatusBadge, type CaseStatus } from '../components/CaseStatusBadge';
 import { PriorityIndicator, type Priority } from '../components/PriorityIndicator';
 import { apiGet } from '../api/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Building2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface VendorCase {
   id: string;
@@ -96,8 +117,8 @@ const VendorPortalPage = () => {
   if (isLoading) {
     return (
       <div>
-        <h2 style={styles.heading}>Vendor Portal</h2>
-        <div style={styles.placeholder}>
+        <h2 className="mb-2 text-2xl font-bold">Vendor Portal</h2>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-card p-16 text-center">
           <p>Loading vendor cases...</p>
         </div>
       </div>
@@ -107,9 +128,9 @@ const VendorPortalPage = () => {
   if (isError) {
     return (
       <div>
-        <h2 style={styles.heading}>Vendor Portal</h2>
-        <div style={{ ...styles.placeholder, borderColor: '#fecaca' }}>
-          <p style={{ color: '#dc2626' }}>
+        <h2 className="mb-2 text-2xl font-bold">Vendor Portal</h2>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-red-200 bg-card p-16 text-center">
+          <p className="text-red-600">
             Failed to load cases: {error instanceof Error ? error.message : 'Unknown error'}
           </p>
         </div>
@@ -117,106 +138,138 @@ const VendorPortalPage = () => {
     );
   }
 
+  if (cases.length === 0) {
+    return (
+      <div>
+        <h2 className="mb-2 text-2xl font-bold">Vendor Portal</h2>
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center py-16 text-center">
+            <Building2 className="mb-4 h-12 w-12 text-muted-foreground/50" />
+            <h3 className="mb-2 text-lg font-semibold">No vendor cases</h3>
+            <p className="text-sm text-muted-foreground">Cases assigned to vendors will appear here.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div data-testid="vendor-portal">
-      <h2 style={styles.heading}>Vendor Portal</h2>
-      <p style={styles.subtitle}>
+      <h2 className="mb-2 text-2xl font-bold">Vendor Portal</h2>
+      <p className="mb-4 text-sm text-slate-500">
         Read-only view of assigned cases ({total} total)
       </p>
 
-      <button data-testid="start-onboarding-btn" onClick={() => { setShowOnboarding(true); setOnboardingStep(1); }} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, marginBottom: 16, cursor: 'pointer' }}>
+      <Button
+        data-testid="start-onboarding-btn"
+        onClick={() => { setShowOnboarding(true); setOnboardingStep(1); }}
+        className="mb-4"
+      >
         Start Vendor Onboarding
-      </button>
+      </Button>
 
       {/* FR-156.A1: Vendor Onboarding Wizard */}
-      {showOnboarding && (
-        <div data-testid="vendor-onboarding-wizard" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 8, padding: 32, maxWidth: 500, width: '100%' }}>
-            <h2>Vendor Onboarding — Step {onboardingStep} of 3</h2>
-            {onboardingStep === 1 && (
-              <div data-testid="onboarding-step-1">
-                <p>Enter your organization details</p>
-                <input placeholder="Organization Name" style={{ width: '100%', padding: 8, marginBottom: 12, border: '1px solid #ddd', borderRadius: 4 }} />
-                <input placeholder="Contact Email" style={{ width: '100%', padding: 8, marginBottom: 12, border: '1px solid #ddd', borderRadius: 4 }} />
-              </div>
-            )}
-            {onboardingStep === 2 && (
-              <div data-testid="onboarding-step-2">
-                <p>Configure integration settings</p>
-                <select style={{ width: '100%', padding: 8, marginBottom: 12, border: '1px solid #ddd', borderRadius: 4 }}>
-                  <option>API Integration</option>
-                  <option>Email Integration</option>
-                  <option>Portal Only</option>
-                </select>
-                <input placeholder="API Key (if applicable)" style={{ width: '100%', padding: 8, marginBottom: 12, border: '1px solid #ddd', borderRadius: 4 }} />
-              </div>
-            )}
-            {onboardingStep === 3 && (
-              <div data-testid="onboarding-step-3">
-                <p>Review and confirm</p>
-                <p style={{ color: '#059669' }}>Organization details configured</p>
-                <p style={{ color: '#059669' }}>Integration settings saved</p>
-                <p>Click &quot;Complete&quot; to finish onboarding.</p>
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
-              <button onClick={() => onboardingStep > 1 ? setOnboardingStep(s => s - 1) : setShowOnboarding(false)} style={{ padding: '8px 16px', cursor: 'pointer' }}>
-                {onboardingStep === 1 ? 'Cancel' : 'Back'}
-              </button>
-              <button onClick={() => onboardingStep < 3 ? setOnboardingStep(s => s + 1) : setShowOnboarding(false)} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
-                {onboardingStep === 3 ? 'Complete' : 'Next'}
-              </button>
+      <Dialog open={showOnboarding} onOpenChange={setShowOnboarding}>
+        <DialogContent data-testid="vendor-onboarding-wizard" className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Vendor Onboarding — Step {onboardingStep} of 3</DialogTitle>
+            <DialogDescription className="sr-only">Complete the vendor onboarding wizard</DialogDescription>
+          </DialogHeader>
+
+          {onboardingStep === 1 && (
+            <div data-testid="onboarding-step-1" className="space-y-3">
+              <p className="text-sm">Enter your organization details</p>
+              <Input placeholder="Organization Name" />
+              <Input placeholder="Contact Email" />
             </div>
-          </div>
-        </div>
-      )}
+          )}
+          {onboardingStep === 2 && (
+            <div data-testid="onboarding-step-2" className="space-y-3">
+              <p className="text-sm">Configure integration settings</p>
+              <Select defaultValue="API Integration">
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select integration" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="API Integration">API Integration</SelectItem>
+                  <SelectItem value="Email Integration">Email Integration</SelectItem>
+                  <SelectItem value="Portal Only">Portal Only</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input placeholder="API Key (if applicable)" />
+            </div>
+          )}
+          {onboardingStep === 3 && (
+            <div data-testid="onboarding-step-3" className="space-y-2">
+              <p className="text-sm">Review and confirm</p>
+              <p className="text-sm text-emerald-600">Organization details configured</p>
+              <p className="text-sm text-emerald-600">Integration settings saved</p>
+              <p className="text-sm">Click &quot;Complete&quot; to finish onboarding.</p>
+            </div>
+          )}
+
+          <DialogFooter className="flex-row justify-between sm:justify-between">
+            <Button
+              variant="outline"
+              onClick={() => onboardingStep > 1 ? setOnboardingStep(s => s - 1) : setShowOnboarding(false)}
+            >
+              {onboardingStep === 1 ? 'Cancel' : 'Back'}
+            </Button>
+            <Button
+              onClick={() => onboardingStep < 3 ? setOnboardingStep(s => s + 1) : setShowOnboarding(false)}
+            >
+              {onboardingStep === 3 ? 'Complete' : 'Next'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* FR-081 A1: Summary tiles */}
-      <div style={styles.tilesContainer} data-testid="vendor-summary-tiles">
-        <div style={{ ...styles.tile, borderLeft: '4px solid #3b82f6' }}>
-          <div style={styles.tileLabel}>Open Cases</div>
-          <div style={styles.tileValue}>{openCount}</div>
-        </div>
-        <div style={{ ...styles.tile, borderLeft: '4px solid #ef4444' }}>
-          <div style={styles.tileLabel}>Overdue</div>
-          <div style={styles.tileValue}>{overdueCount}</div>
-        </div>
-        <div style={{ ...styles.tile, borderLeft: '4px solid #22c55e' }}>
-          <div style={styles.tileLabel}>Submitted Today</div>
-          <div style={styles.tileValue}>{submittedTodayCount}</div>
-        </div>
-        <div style={{ ...styles.tile, borderLeft: '4px solid #a855f7' }}>
-          <div style={styles.tileLabel}>This Week Score</div>
-          <div style={styles.tileValue}>{weekScore}%</div>
-        </div>
+      <div className="mb-4 grid grid-cols-4 gap-4" data-testid="vendor-summary-tiles">
+        <Card className="border-l-4 border-l-blue-500 p-4">
+          <div className="mb-1 text-xs font-semibold uppercase text-slate-500">Open Cases</div>
+          <div className="text-2xl font-bold">{openCount}</div>
+        </Card>
+        <Card className="border-l-4 border-l-red-500 p-4">
+          <div className="mb-1 text-xs font-semibold uppercase text-slate-500">Overdue</div>
+          <div className="text-2xl font-bold">{overdueCount}</div>
+        </Card>
+        <Card className="border-l-4 border-l-green-500 p-4">
+          <div className="mb-1 text-xs font-semibold uppercase text-slate-500">Submitted Today</div>
+          <div className="text-2xl font-bold">{submittedTodayCount}</div>
+        </Card>
+        <Card className="border-l-4 border-l-purple-500 p-4">
+          <div className="mb-1 text-xs font-semibold uppercase text-slate-500">This Week Score</div>
+          <div className="text-2xl font-bold">{weekScore}%</div>
+        </Card>
       </div>
 
       {/* FR-081 A2: Filter controls */}
-      <div style={styles.filtersContainer} data-testid="vendor-filters">
-        <select
-          style={styles.filterSelect}
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          aria-label="Filter by status"
-        >
-          <option value="">All Statuses</option>
-          {uniqueStatuses.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-        <select
-          style={styles.filterSelect}
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          aria-label="Filter by type"
-        >
-          <option value="">All Types</option>
-          {uniqueTypes.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
-        <input
-          style={styles.filterInput}
+      <div className="mb-4 flex flex-wrap gap-3" data-testid="vendor-filters">
+        <Select value={statusFilter || '__all__'} onValueChange={(v) => setStatusFilter(v === '__all__' ? '' : v)}>
+          <SelectTrigger className="min-w-[160px]" aria-label="Filter by status">
+            <SelectValue placeholder="All Statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Statuses</SelectItem>
+            {uniqueStatuses.map((s) => (
+              <SelectItem key={s} value={s}>{s}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={typeFilter || '__all__'} onValueChange={(v) => setTypeFilter(v === '__all__' ? '' : v)}>
+          <SelectTrigger className="min-w-[160px]" aria-label="Filter by type">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Types</SelectItem>
+            {uniqueTypes.map((t) => (
+              <SelectItem key={t} value={t}>{t}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          className="min-w-[200px] flex-1"
           type="text"
           placeholder="Search cases..."
           value={searchQuery}
@@ -225,144 +278,44 @@ const VendorPortalPage = () => {
         />
       </div>
 
-      <div style={styles.tableContainer}>
-        <table style={styles.table} role="table" aria-label="Vendor cases">
-          <thead>
-            <tr>
-              <th style={styles.th}>Case #</th>
-              <th style={styles.th}>Type</th>
-              <th style={styles.th}>Status</th>
-              <th style={styles.th}>Priority</th>
-              <th style={styles.th}>TAT Remaining</th>
-            </tr>
-          </thead>
-          <tbody>
+      <Card>
+        <Table role="table" aria-label="Vendor cases">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="whitespace-nowrap text-xs uppercase">Case #</TableHead>
+              <TableHead className="whitespace-nowrap text-xs uppercase">Type</TableHead>
+              <TableHead className="whitespace-nowrap text-xs uppercase">Status</TableHead>
+              <TableHead className="whitespace-nowrap text-xs uppercase">Priority</TableHead>
+              <TableHead className="whitespace-nowrap text-xs uppercase">TAT Remaining</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {filteredCases.map((c) => (
-              <tr
+              <TableRow
                 key={c.id}
                 data-testid="vendor-case-row"
-                style={styles.clickableRow}
+                className="cursor-pointer"
                 onClick={() => navigate(`/cases/${c.case_id}`)}
               >
-                <td style={styles.td}><strong>{c.caseNumber}</strong></td>
-                <td style={styles.td}>{c.type}</td>
-                <td style={styles.td}><CaseStatusBadge status={c.status} /></td>
-                <td style={styles.td}><PriorityIndicator priority={c.priority} /></td>
-                <td style={styles.td}>{c.tatRemaining}</td>
-              </tr>
+                <TableCell className="whitespace-nowrap"><strong>{c.caseNumber}</strong></TableCell>
+                <TableCell className="whitespace-nowrap">{c.type}</TableCell>
+                <TableCell className="whitespace-nowrap"><CaseStatusBadge status={c.status} /></TableCell>
+                <TableCell className="whitespace-nowrap"><PriorityIndicator priority={c.priority} /></TableCell>
+                <TableCell className="whitespace-nowrap">{c.tatRemaining}</TableCell>
+              </TableRow>
             ))}
             {filteredCases.length === 0 && (
-              <tr>
-                <td colSpan={5} style={{ ...styles.td, textAlign: 'center', color: '#94a3b8' }}>
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-slate-400">
                   No cases match the current filters.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
-};
-
-const styles: Record<string, CSSProperties> = {
-  heading: {
-    margin: '0 0 0.5rem 0',
-    fontSize: '1.5rem',
-    fontWeight: 700,
-  },
-  subtitle: {
-    margin: '0 0 1rem 0',
-    fontSize: '0.875rem',
-    color: '#64748b',
-  },
-  tilesContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: '1rem',
-    marginBottom: '1rem',
-  },
-  tile: {
-    padding: '1rem',
-    backgroundColor: 'var(--color-surface)',
-    border: '1px solid var(--color-border)',
-    borderRadius: '8px',
-  },
-  tileLabel: {
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    textTransform: 'uppercase' as const,
-    color: '#64748b',
-    marginBottom: '0.25rem',
-  },
-  tileValue: {
-    fontSize: '1.5rem',
-    fontWeight: 700,
-  },
-  filtersContainer: {
-    display: 'flex',
-    gap: '0.75rem',
-    marginBottom: '1rem',
-    flexWrap: 'wrap' as const,
-  },
-  filterSelect: {
-    padding: '0.5rem 0.75rem',
-    borderRadius: '6px',
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-surface)',
-    fontSize: '0.875rem',
-    minWidth: '160px',
-  },
-  filterInput: {
-    padding: '0.5rem 0.75rem',
-    borderRadius: '6px',
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-surface)',
-    fontSize: '0.875rem',
-    minWidth: '200px',
-    flex: 1,
-  },
-  tableContainer: {
-    overflowX: 'auto',
-    border: '1px solid var(--color-border)',
-    borderRadius: '8px',
-    backgroundColor: 'var(--color-surface)',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    fontSize: '0.875rem',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '0.75rem 1rem',
-    borderBottom: '2px solid var(--color-border)',
-    fontSize: '0.75rem',
-    textTransform: 'uppercase',
-    fontWeight: 600,
-    color: '#64748b',
-    whiteSpace: 'nowrap',
-  },
-  td: {
-    padding: '0.75rem 1rem',
-    borderBottom: '1px solid var(--color-border)',
-    whiteSpace: 'nowrap',
-  },
-  clickableRow: {
-    cursor: 'pointer',
-    transition: 'background-color 0.15s ease',
-  },
-  placeholder: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '4rem 2rem',
-    border: '1px dashed var(--color-border)',
-    borderRadius: '8px',
-    backgroundColor: 'var(--color-surface)',
-    textAlign: 'center',
-  },
 };
 
 export default VendorPortalPage;
