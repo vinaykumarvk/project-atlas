@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import OpenAI from 'openai';
 import { EmailInput, LlmClassificationResult } from '../types';
 
 /**
@@ -10,6 +11,83 @@ export interface LlmClassifierProvider {
     email: EmailInput,
     labels: string[],
   ): Promise<LlmClassificationResult[]>;
+}
+
+/**
+ * Real LLM classifier backed by OpenAI. Used to augment the distilled
+ * ONNX classifier when its confidence is below the GREEN band (see the
+ * classification pipeline). Returns the single best-fit label with a
+ * calibrated confidence and a short rationale.
+ *
+ * Config (env): OPENAI_API_KEY (required), LLM_CLASSIFIER_MODEL (default
+ * gpt-4o-mini). Throws if no key is set so the pipeline falls back to the
+ * ONNX-only result.
+ */
+@Injectable()
+export class OpenAiLlmClassifier implements LlmClassifierProvider {
+  private readonly logger = new Logger(OpenAiLlmClassifier.name);
+  private readonly model = process.env.LLM_CLASSIFIER_MODEL || 'gpt-4o-mini';
+  private client: OpenAI | null = null;
+
+  private getClient(): OpenAI {
+    if (!this.client) {
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        throw new Error('OPENAI_API_KEY is not configured');
+      }
+      this.client = new OpenAI({ apiKey, maxRetries: 2, timeout: 15000 });
+    }
+    return this.client;
+  }
+
+  async classify(
+    email: EmailInput,
+    labels: string[],
+  ): Promise<LlmClassificationResult[]> {
+    const system =
+      'You are an email classifier for an Indian bank\'s mortgage/loan operations team. ' +
+      'Classify the email into exactly one of the provided categories and return strict JSON ' +
+      '{"label": <one of the categories>, "confidence": <number 0-1>, "rationale": <one short sentence>}. ' +
+      'confidence is your calibrated probability that the label is correct.';
+    const user =
+      `Categories: ${labels.join(', ')}\n\n` +
+      `Subject: ${email.subject}\n\nBody: ${email.body}`;
+
+    const response = await this.getClient().chat.completions.create({
+      model: this.model,
+      temperature: 0,
+      max_tokens: 200,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('LLM returned an empty response');
+    }
+
+    const parsed = JSON.parse(content) as {
+      label?: string;
+      confidence?: number;
+      rationale?: string;
+    };
+
+    const label =
+      parsed.label && labels.includes(parsed.label) ? parsed.label : 'GENERAL_INQUIRY';
+    const confidence =
+      typeof parsed.confidence === 'number'
+        ? Math.min(1, Math.max(0, parsed.confidence))
+        : 0.5;
+    const rationale = parsed.rationale || 'Classified by LLM.';
+
+    this.logger.debug(
+      `LLM classified as ${label} (confidence ${confidence.toFixed(2)}) via ${this.model}`,
+    );
+    return [{ label, confidence, rationale }];
+  }
 }
 
 /**
