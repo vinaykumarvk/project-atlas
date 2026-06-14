@@ -1,0 +1,40 @@
+{"subject":"Need market value assessment for flat in Andheri","body":"We are processing a top-up loan and require an independent assessment of the current market price of the client's 2BHK before we sanction. Please arrange.","label":"VALUATION_REQUEST"}
+{"subject":"Worth of the mortgaged bungalow","body":"Kindly let us know how much the bungalow at plot 14 fetches in today's market before we approve the enhancement.","label":"VALUATION_REQUEST"}
+{"subject":"how much is the shop","body":"sir what price will the commercial shop in karol bagh get now? need for loan file","label":"VALUATION_REQUEST"}
+{"subject":"Appraisal pending for Mehta file","body":"The surveyor still hasn't given us a figure for the Mehta property. Can we get the assessed amount this week?","label":"VALUATION_REQUEST"}
+{"subject":"Current price of agricultural land","body":"Please depute someone to estimate what the 3 acres near Hosur would sell for. Required for the agri loan.","label":"VALUATION_REQUEST"}
+{"subject":"Advocate's view needed on disputed plot","body":"There is a pending family dispute on the ancestral land offered as security. Can your panel lawyer give a written opinion on whether we can proceed?","label":"LEGAL_OPINION"}
+{"subject":"Is the property legally safe to fund?","body":"Before disbursing we want counsel to confirm there are no encumbrances or court attachments on the asset.","label":"LEGAL_OPINION"}
+{"subject":"Need lawyer sign-off","body":"Please have the empanelled advocate examine the chain documents and certify whether the mortgage is enforceable.","label":"LEGAL_OPINION"}
+{"subject":"Opinion on gift deed validity","body":"The property came to the borrower via a gift deed. We'd like a legal view on whether that creates any risk for us.","label":"LEGAL_OPINION"}
+{"subject":"court matter on collateral","body":"there seems to be some litigation going on this flat. kindly ask legal to advise if we can still take it as security","label":"LEGAL_OPINION"}
+{"subject":"Verify ownership chain for the last 30 years","body":"Please trace the ownership history of survey no. 221 and confirm the chain is unbroken before we proceed.","label":"TITLE_SEARCH"}
+{"subject":"Check who actually owns this land","body":"We need confirmation that the seller named in the agreement is the rightful registered owner.","label":"TITLE_SEARCH"}
+{"subject":"EC for the last 13 years please","body":"Kindly obtain the encumbrance certificate and verify there are no prior registered charges on the property.","label":"TITLE_SEARCH"}
+{"subject":"deed verification","body":"can you pull the registered sale deeds and confirm the title flows cleanly to the current applicant","label":"TITLE_SEARCH"}
+{"subject":"Is the flat free of prior mortgage?","body":"Please confirm from the sub-registrar records that this apartment is not already pledged to another lender.","label":"TITLE_SEARCH"}
+{"subject":"Time to renew the fire cover on the godown","body":"The existing fire policy on the hypothecated stock lapses next month. Please initiate continuation.","label":"INSURANCE_RENEWAL"}
+{"subject":"Policy expiring - need fresh quote","body":"Customer's property cover is about to end; share the new premium so we can keep the asset protected.","label":"INSURANCE_RENEWAL"}
+{"subject":"asset protection lapsing","body":"the cover on the financed car ends on the 30th. pls arrange continuation so the hypothecation stays insured","label":"INSURANCE_RENEWAL"}
+{"subject":"Premium due reminder","body":"Mr Khanna's home insurance premium is overdue. Kindly process the renewal before the grace period ends.","label":"INSURANCE_RENEWAL"}
+{"subject":"Continue the cover for another year","body":"We'd like to extend the existing policy on the mortgaged building. Please send the renewal notice.","label":"INSURANCE_RENEWAL"}
+{"subject":"Loan fully repaid - return the papers","body":"Mr. Rao has cleared his entire outstanding. Kindly issue the no-dues and hand back the original deeds.","label":"RELEASE_OF_COLLATERAL"}
+{"subject":"Lift the charge on my house","body":"I closed my mortgage last week. Please remove the bank's lien so I can sell the property.","label":"RELEASE_OF_COLLATERAL"}
+{"subject":"NOC request after closure","body":"Account LN44213 is settled in full. Requesting the no-objection letter and release of the property documents.","label":"RELEASE_OF_COLLATERAL"}
+{"subject":"give back my documents","body":"loan over and done since march, still haven't got my original papers back. please release them","label":"RELEASE_OF_COLLATERAL"}
+{"subject":"Remove hypothecation from RC","body":"The vehicle loan is closed. Please issue Form 35 and the NOC so I can get the hypothecation removed from the RC.","label":"RELEASE_OF_COLLATERAL"}
+{"subject":"Please send someone to see the construction","body":"We'd like a field officer to physically check the progress of the building before the next tranche.","label":"SITE_VISIT"}
+{"subject":"Inspection of the factory premises","body":"Arrange a visit to verify the machinery actually exists at the stated address.","label":"SITE_VISIT"}
+{"subject":"go and check the property","body":"sir kindly depute field staff to the bandra address to confirm the flat is occupied by the borrower","label":"SITE_VISIT"}
+{"subject":"Physical verification before disbursal","body":"Please arrange for someone to visit and photograph the under-construction site this week.","label":"SITE_VISIT"}
+{"subject":"Stage check needed at plot","body":"The builder claims slab work is done. Can we send an engineer to confirm on the ground?","label":"SITE_VISIT"}
+{"subject":"Still waiting for the salary slips","body":"The borrower hasn't submitted last 3 months payslips and bank statements. Please chase them.","label":"DOCUMENT_COLLECTION"}
+{"subject":"Missing KYC papers","body":"We cannot proceed until the customer uploads their PAN and address proof.","label":"DOCUMENT_COLLECTION"}
+{"subject":"papers pending from customer","body":"property tax receipts and the latest ITR are still not received. follow up with applicant please","label":"DOCUMENT_COLLECTION"}
+{"subject":"Need the registered agreement copy","body":"Kindly collect the stamped sale agreement from Mr. Joseph before we send the file for sanction.","label":"DOCUMENT_COLLECTION"}
+{"subject":"Incomplete file - get remaining docs","body":"Three items are outstanding: bank statement, Form 16, and the occupancy certificate. Please obtain them.","label":"DOCUMENT_COLLECTION"}
+{"subject":"What's happening with my application?","body":"I applied three weeks ago and heard nothing. Can someone tell me where things stand?","label":"GENERAL_INQUIRY"}
+{"subject":"General question about your process","body":"How long does the whole thing usually take from start to finish? Just curious.","label":"GENERAL_INQUIRY"}
+{"subject":"any update","body":"hi, just checking if there is any movement on my case. been a while. thanks","label":"GENERAL_INQUIRY"}
+{"subject":"Whom do I contact?","body":"Could you let me know which branch officer is handling my loan and their number?","label":"GENERAL_INQUIRY"}
+{"subject":"Confused about next steps","body":"I got an SMS saying action required but it's not clear what I need to do. Please clarify.","label":"GENERAL_INQUIRY"}
