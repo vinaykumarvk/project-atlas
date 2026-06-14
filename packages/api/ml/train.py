@@ -70,16 +70,30 @@ class EmailDataset(Dataset):
 
 
 # ── Data Loading ───────────────────────────────────────────────────
-def load_emails(db_url: str, batch_id: str | None = None):
-    """Load labeled emails from the benchmark database."""
+def load_emails(db_url: str, batch_id: str | None = None, source: str = "app"):
+    """Load labeled emails.
+
+    source="benchmark": synthetic corpus in the test_emails table.
+    source="app": real ingested emails joined to their confirmed case type
+                  (email_ingests x cases) — used when the benchmark corpus
+                  is unavailable.
+    """
     conn = psycopg2.connect(db_url)
     cur = conn.cursor()
 
-    query = "SELECT subject, body, ground_truth_label FROM test_emails"
     params = []
-    if batch_id:
-        query += " WHERE generation_batch = %s"
-        params.append(batch_id)
+    if source == "app":
+        query = (
+            "SELECT e.subject, e.body_text, c.case_type "
+            "FROM cases c JOIN email_ingests e ON e.id = c.email_ingest_id "
+            "WHERE e.subject IS NOT NULL AND e.body_text IS NOT NULL "
+            "AND c.case_type IS NOT NULL"
+        )
+    else:
+        query = "SELECT subject, body, ground_truth_label FROM test_emails"
+        if batch_id:
+            query += " WHERE generation_batch = %s"
+            params.append(batch_id)
 
     cur.execute(query, params)
     rows = cur.fetchall()
@@ -312,6 +326,8 @@ def main():
     parser = argparse.ArgumentParser(description="Train DistilBERT email classifier")
     parser.add_argument("--db-url", required=True, help="PostgreSQL connection URL")
     parser.add_argument("--batch-id", default=None, help="Filter emails by generation batch")
+    parser.add_argument("--source", choices=["app", "benchmark"], default="app",
+                        help="Data source: 'app' (email_ingests x cases) or 'benchmark' (test_emails)")
     parser.add_argument("--epochs", type=int, default=4, help="Training epochs")
     parser.add_argument("--batch-size", type=int, default=16, help="Batch size")
     parser.add_argument("--lr", type=float, default=2e-5, help="Learning rate")
@@ -322,7 +338,7 @@ def main():
     args = parser.parse_args()
 
     # Load data
-    texts, labels = load_emails(args.db_url, args.batch_id)
+    texts, labels = load_emails(args.db_url, args.batch_id, args.source)
     if len(texts) < 10:
         print("ERROR: Not enough training data. Need at least 10 emails.")
         sys.exit(1)
