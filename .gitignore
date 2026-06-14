@@ -19,3 +19,6 @@ packages/api/prisma/migrations/**/migration_lock.toml
 *.safetensors
 *.onnx.data
 packages/api/ml/model/onnx/model.onnx
+# Training output / scratch dirs
+packages/api/ml/model_new/
+packages/api/ml/model_v2/
