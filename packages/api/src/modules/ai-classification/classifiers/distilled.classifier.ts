@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ClassificationLabel, EmailInput } from '../types';
 import { OnnxDistilledClassifier } from './onnx-distilled.classifier';
 
@@ -8,10 +8,19 @@ import { OnnxDistilledClassifier } from './onnx-distilled.classifier';
  * falls back to keyword-based classification otherwise.
  */
 @Injectable()
-export class DistilledClassifier {
+export class DistilledClassifier implements OnModuleInit {
   private readonly logger = new Logger(DistilledClassifier.name);
   private onnxClassifier: OnnxDistilledClassifier | null = null;
   private onnxInitialized = false;
+
+  /**
+   * Load the ONNX model at startup so the API uses DistilBERT for
+   * classification. Falls back to keyword classification if the model
+   * is unavailable (handled inside initOnnx).
+   */
+  async onModuleInit(): Promise<void> {
+    await this.initOnnx();
+  }
 
   private readonly labelKeywords: Record<string, string[]> = {
     VALUATION_REQUEST: ['valuation', 'property valuation', 'valuation report', 'appraisal'],
