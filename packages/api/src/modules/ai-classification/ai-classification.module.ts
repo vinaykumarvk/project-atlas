@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DistilledClassifier } from './classifiers/distilled.classifier';
-import { MockLlmClassifier } from './classifiers/llm.classifier';
+import { MockLlmClassifier, OpenAiLlmClassifier } from './classifiers/llm.classifier';
 import { RuleBasedExtractor } from './ner/rule-based.extractor';
 import { MasterValidator } from './validation/master-validator';
 import { ConfidenceBandService } from './services/confidence-band.service';
@@ -41,9 +41,15 @@ import { AiGovernanceController } from './controllers/ai-governance.controller';
   controllers: [ClassificationMetricsController, AiGovernanceController],
   providers: [
     DistilledClassifier,
+    MockLlmClassifier,
+    OpenAiLlmClassifier,
     {
+      // Use the real OpenAI classifier when a key is configured; otherwise
+      // fall back to the mock (e.g. local dev without a key).
       provide: 'LlmClassifierProvider',
-      useClass: MockLlmClassifier,
+      useFactory: (openai: OpenAiLlmClassifier, mock: MockLlmClassifier) =>
+        process.env.OPENAI_API_KEY ? openai : mock,
+      inject: [OpenAiLlmClassifier, MockLlmClassifier],
     },
     RuleBasedExtractor,
     MasterValidator,
