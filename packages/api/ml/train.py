@@ -70,21 +70,47 @@ class EmailDataset(Dataset):
 
 
 # ── Data Loading ───────────────────────────────────────────────────
-def load_emails(db_url: str, batch_id: str | None = None):
-    """Load labeled emails from the benchmark database."""
-    conn = psycopg2.connect(db_url)
-    cur = conn.cursor()
+def load_emails(db_url: str, batch_id: str | None = None, source: str = "app",
+                data_file: str | None = None):
+    """Load labeled emails.
 
-    query = "SELECT subject, body, ground_truth_label FROM test_emails"
-    params = []
-    if batch_id:
-        query += " WHERE generation_batch = %s"
-        params.append(batch_id)
+    data_file set: a JSONL file of {"subject","body","label"} objects.
+    source="benchmark": synthetic corpus in the test_emails table.
+    source="app": real ingested emails joined to their confirmed case type
+                  (email_ingests x cases) — used when the benchmark corpus
+                  is unavailable.
+    """
+    if data_file:
+        rows = []
+        with open(data_file) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                obj = json.loads(line)
+                rows.append((obj["subject"], obj["body"], obj["label"]))
+    else:
+        conn = psycopg2.connect(db_url)
+        cur = conn.cursor()
 
-    cur.execute(query, params)
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
+        params = []
+        if source == "app":
+            query = (
+                "SELECT e.subject, e.body_text, c.case_type "
+                "FROM cases c JOIN email_ingests e ON e.id = c.email_ingest_id "
+                "WHERE e.subject IS NOT NULL AND e.body_text IS NOT NULL "
+                "AND c.case_type IS NOT NULL"
+            )
+        else:
+            query = "SELECT subject, body, ground_truth_label FROM test_emails"
+            if batch_id:
+                query += " WHERE generation_batch = %s"
+                params.append(batch_id)
+
+        cur.execute(query, params)
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
 
     texts = []
     labels = []
@@ -310,8 +336,11 @@ def export_onnx(model_dir: str, output_path: str, max_length: int = 256):
 # ── Main ───────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(description="Train DistilBERT email classifier")
-    parser.add_argument("--db-url", required=True, help="PostgreSQL connection URL")
+    parser.add_argument("--db-url", default=None, help="PostgreSQL connection URL (not needed with --data-file)")
+    parser.add_argument("--data-file", default=None, help="JSONL file of {subject,body,label} to train from instead of the DB")
     parser.add_argument("--batch-id", default=None, help="Filter emails by generation batch")
+    parser.add_argument("--source", choices=["app", "benchmark"], default="app",
+                        help="Data source: 'app' (email_ingests x cases) or 'benchmark' (test_emails)")
     parser.add_argument("--epochs", type=int, default=4, help="Training epochs")
     parser.add_argument("--batch-size", type=int, default=16, help="Batch size")
     parser.add_argument("--lr", type=float, default=2e-5, help="Learning rate")
@@ -322,7 +351,9 @@ def main():
     args = parser.parse_args()
 
     # Load data
-    texts, labels = load_emails(args.db_url, args.batch_id)
+    if not args.db_url and not args.data_file:
+        parser.error("one of --db-url or --data-file is required")
+    texts, labels = load_emails(args.db_url, args.batch_id, args.source, args.data_file)
     if len(texts) < 10:
         print("ERROR: Not enough training data. Need at least 10 emails.")
         sys.exit(1)
