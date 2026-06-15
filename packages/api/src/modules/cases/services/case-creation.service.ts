@@ -542,6 +542,7 @@ export class CaseCreationService {
       include: {
         activity_logs: { orderBy: { created_at: 'asc' } },
         linked_cases_from: true,
+        email_ingest: true,
       },
     });
 
@@ -557,6 +558,7 @@ export class CaseCreationService {
       include: {
         activity_logs: { orderBy: { created_at: 'asc' } },
         linked_cases_from: true,
+        email_ingest: true,
       },
     });
 
@@ -806,7 +808,11 @@ export class CaseCreationService {
       caseNumber: c.case_number,
       emailIngestId: c.email_ingest_id ?? '',
       subject: c.ai_summary ?? '',
-      from: '',
+      from: c.email_ingest?.from_address ?? '',
+      emailSubject: c.email_ingest?.subject ?? undefined,
+      emailFrom: c.email_ingest?.from_address ?? undefined,
+      bodyText: c.email_ingest?.body_text ?? undefined,
+      bodyHtml: c.email_ingest?.body_html ?? undefined,
       status: c.status as CaseStatus,
       caseType: c.case_type,
       priority: c.priority,

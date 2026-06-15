@@ -57,6 +57,11 @@ export interface CaseRecord {
   emailIngestId: string;
   subject: string;
   from: string;
+  /** Original ingested email — for displaying the raw message on case detail. */
+  emailSubject?: string;
+  emailFrom?: string;
+  bodyText?: string;
+  bodyHtml?: string;
   status: CaseStatus;
   caseType: string;
   priority: string;
