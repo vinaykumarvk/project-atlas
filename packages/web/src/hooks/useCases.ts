@@ -23,6 +23,9 @@ export interface CaseDetail {
   id: string;
   caseNumber: string;
   subject: string;
+  emailSubject?: string;
+  emailFrom?: string;
+  emailBody?: string;
   status: CaseStatus;
   priority: Priority;
   type: string;
@@ -182,6 +185,10 @@ interface CaseRecord {
   emailIngestId?: string;
   subject: string;
   from?: string;
+  emailSubject?: string;
+  emailFrom?: string;
+  bodyText?: string;
+  bodyHtml?: string;
   status: string;
   caseType: string;
   priority: string;
@@ -216,6 +223,9 @@ function mapRecordToDetail(r: CaseRecord): CaseDetail {
     id: r.id,
     caseNumber: r.caseNumber,
     subject: r.subject || 'No subject',
+    emailSubject: r.emailSubject,
+    emailFrom: r.emailFrom || r.from,
+    emailBody: r.bodyText,
     status: (r.status || 'NEW') as CaseDetail['status'],
     priority: mapPriority(r.priority),
     type: r.caseType || 'UNKNOWN',

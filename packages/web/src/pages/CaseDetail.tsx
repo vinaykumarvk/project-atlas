@@ -96,7 +96,7 @@ const MOCK_REPLY_DRAFTS: ReplyDraftItem[] = [
   {
     id: 'rd-1',
     caseId: '1',
-    subject: 'Re: Valuation Request - 123 Main St, Sydney NSW 2000',
+    subject: 'Re: Valuation Request - 42 MG Road, Andheri West, Mumbai 400053',
     body: 'Dear Customer,\n\nThank you for your valuation request. We have received your request and will process it promptly.\n\nBest regards,\nProperty Services Team',
     status: 'PROPOSED',
     generatedAt: '2026-04-27T10:00:00Z',
@@ -104,11 +104,11 @@ const MOCK_REPLY_DRAFTS: ReplyDraftItem[] = [
   {
     id: 'rd-2',
     caseId: '1',
-    subject: 'Re: Valuation Request - 123 Main St, Sydney NSW 2000',
+    subject: 'Re: Valuation Request - 42 MG Road, Andheri West, Mumbai 400053',
     body: 'Dear Customer,\n\nYour valuation has been completed. Please find the attached report.\n\nBest regards,\nProperty Services Team',
     status: 'APPROVED',
     generatedAt: '2026-04-27T11:30:00Z',
-    approvedBy: 'John Smith',
+    approvedBy: 'Rajesh Kumar',
     approvedAt: '2026-04-27T12:00:00Z',
   },
 ];
@@ -117,6 +117,9 @@ interface CaseData {
   id: string;
   caseNumber: string;
   subject: string;
+  emailSubject?: string;
+  emailFrom?: string;
+  emailBody?: string;
   status: CaseStatus;
   priority: Priority;
   type: string;
@@ -197,11 +200,11 @@ interface Attachment {
 const MOCK_CASE: CaseData = {
   id: '1',
   caseNumber: 'CASE-1042',
-  subject: 'Valuation Request - 123 Main St, Sydney NSW 2000',
+  subject: 'Valuation Request - 42 MG Road, Andheri West, Mumbai 400053',
   status: 'IN_PROGRESS',
   priority: 'P2',
   type: 'Valuation',
-  assignedFpr: 'John Smith',
+  assignedFpr: 'Rajesh Kumar',
   createdAt: '2026-04-27T09:15:00Z',
   tatDue: '2026-04-28T17:00:00Z',
   slaRemainingPercent: 65,
@@ -212,41 +215,41 @@ const MOCK_CASE: CaseData = {
     confidenceBand: 'GREEN',
   },
   entities: [
-    { type: 'Property Address', value: '123 Main St, Sydney NSW 2000', outcome: 'EXACT_MATCH', sourceText: '123 Main St, Sydney NSW 2000', confidence: 0.97 },
-    { type: 'Customer Name', value: 'Acme Corp Pty Ltd', outcome: 'FUZZY_MATCH', candidates: ['Acme Corp Pty Ltd', 'ACME Corporation Pty Limited'], sourceText: 'Acme Corp', confidence: 0.78 },
+    { type: 'Property Address', value: '42 MG Road, Andheri West, Mumbai 400053', outcome: 'EXACT_MATCH', sourceText: '42 MG Road, Andheri West, Mumbai 400053', confidence: 0.97 },
+    { type: 'Customer Name', value: 'Godrej Properties Ltd', outcome: 'FUZZY_MATCH', candidates: ['Godrej Properties Ltd', 'Godrej Properties Limited'], sourceText: 'Godrej Properties', confidence: 0.78 },
     { type: 'Loan Reference', value: 'LN-2026-00451', outcome: 'EXACT_MATCH', sourceText: 'LN-2026-00451', confidence: 0.99 },
-    { type: 'Amount', value: '$1,250,000', outcome: 'FUZZY_MATCH', candidates: ['$1,250,000', '$1,250,000.00', 'AUD 1.25M'], sourceText: '$1.25M', confidence: 0.82 },
+    { type: 'Amount', value: '₹9,50,00,000', outcome: 'FUZZY_MATCH', candidates: ['₹9,50,00,000', '₹9,50,00,000.00', 'INR 9.5 Cr'], sourceText: '₹9.5 Cr', confidence: 0.82 },
   ],
   securityVerdicts: {
     spf: 'PASS',
     dkim: 'PASS',
     dmarc: 'FAIL',
   },
-  routing_rationale: 'Region matches NSW assignment rules; Sub-category "New Valuation" routes to Valuation team; Priority P2 assigned based on loan value > $1M; FPR John Smith selected — lowest current caseload in region',
+  routing_rationale: 'Region matches MH assignment rules; Sub-category "New Valuation" routes to Valuation team; Priority P2 assigned based on loan value > ₹7.5 Cr; FPR Rajesh Kumar selected — lowest current caseload in region',
   customer: {
-    name: 'Acme Corp Pty Ltd',
+    name: 'Godrej Properties Ltd',
     accountNumber: 'ACC-987654',
     segment: 'Commercial',
   },
   property: {
-    address: '123 Main St, Sydney NSW 2000',
+    address: '42 MG Road, Andheri West, Mumbai 400053',
     type: 'Commercial Office',
-    state: 'NSW',
-    valuationAmount: '$1,250,000',
+    state: 'MH',
+    valuationAmount: '₹9,50,00,000',
   },
 };
 
 const MOCK_ACTIVITY: ActivityEvent[] = [
   { id: '1', timestamp: '2026-04-27 09:15', action: 'Case Created', user: 'System', details: 'Email ingested and classified automatically.' },
   { id: '2', timestamp: '2026-04-27 09:16', action: 'Classification Applied', user: 'ML Pipeline', details: 'Category: Valuation Request | Confidence: 92% (GREEN)' },
-  { id: '3', timestamp: '2026-04-27 09:20', action: 'Auto-Assigned', user: 'System', details: 'Assigned to FPR John Smith based on region rules.' },
-  { id: '4', timestamp: '2026-04-27 09:45', action: 'Status Changed', user: 'John Smith', details: 'Status changed from NEW to IN_PROGRESS' },
-  { id: '5', timestamp: '2026-04-27 10:30', action: 'Vendor Ordered', user: 'John Smith', details: 'Valuation ordered from ABC Valuers Pty Ltd' },
+  { id: '3', timestamp: '2026-04-27 09:20', action: 'Auto-Assigned', user: 'System', details: 'Assigned to FPR Rajesh Kumar based on region rules.' },
+  { id: '4', timestamp: '2026-04-27 09:45', action: 'Status Changed', user: 'Rajesh Kumar', details: 'Status changed from NEW to IN_PROGRESS' },
+  { id: '5', timestamp: '2026-04-27 10:30', action: 'Vendor Ordered', user: 'Rajesh Kumar', details: 'Valuation ordered from JLL India Valuers Pvt Ltd' },
 ];
 
 const MOCK_LINKED_CASES: LinkedCase[] = [
-  { id: '4', caseNumber: 'CASE-1039', subject: 'Property Inspection - 123 Main St', relationship: 'Related Property' },
-  { id: '8', caseNumber: 'CASE-1035', subject: 'Settlement Coordination - Acme Corp', relationship: 'Same Customer' },
+  { id: '4', caseNumber: 'CASE-1039', subject: 'Property Inspection - 42 MG Road, Mumbai', relationship: 'Related Property' },
+  { id: '8', caseNumber: 'CASE-1035', subject: 'Settlement Coordination - Godrej Properties', relationship: 'Same Customer' },
 ];
 
 const MOCK_ATTACHMENTS: Attachment[] = [
@@ -269,23 +272,24 @@ const MOCK_ATTACHMENTS: Attachment[] = [
     size: '1.2 MB',
     sizeBytes: 1258291,
     uploadedAt: '2026-04-27',
-    uploadedBy: 'John Smith',
+    uploadedBy: 'Rajesh Kumar',
     avStatus: 'CLEAN',
     avVerdict: 'NOOP_CLEAN',
     documentType: 'LEGAL_OPINION',
     docTypeConfidence: 0.87,
-    ocrText: 'Property Title Search Report\n\nSubject Property: 123 Main St, Sydney NSW 2000\nTitle Reference: DP123456\nOwner: Acme Corp Pty Ltd\n\nNo encumbrances found.',
+    ocrText: 'Property Title Search Report\n\nSubject Property: 42 MG Road, Andheri West, Mumbai 400053\nTitle Reference: MH/MUM/2026/04512\nOwner: Godrej Properties Ltd\n\nNo encumbrances found.',
     wordConfidences: [
       { word: 'Property', confidence: 0.98 }, { word: 'Title', confidence: 0.97 },
       { word: 'Search', confidence: 0.95 }, { word: 'Report', confidence: 0.96 },
       { word: 'Subject', confidence: 0.94 }, { word: 'Property:', confidence: 0.91 },
-      { word: '123', confidence: 0.99 }, { word: 'Main', confidence: 0.93 },
-      { word: 'St,', confidence: 0.88 }, { word: 'Sydney', confidence: 0.92 },
-      { word: 'NSW', confidence: 0.97 }, { word: '2000', confidence: 0.99 },
+      { word: '42', confidence: 0.99 }, { word: 'MG', confidence: 0.93 },
+      { word: 'Road,', confidence: 0.88 }, { word: 'Andheri', confidence: 0.92 },
+      { word: 'West,', confidence: 0.91 }, { word: 'Mumbai', confidence: 0.92 },
+      { word: '400053', confidence: 0.99 },
       { word: 'Title', confidence: 0.96 }, { word: 'Reference:', confidence: 0.90 },
-      { word: 'DP123456', confidence: 0.85 }, { word: 'Owner:', confidence: 0.93 },
-      { word: 'Acme', confidence: 0.78 }, { word: 'Corp', confidence: 0.82 },
-      { word: 'Pty', confidence: 0.75 }, { word: 'Ltd', confidence: 0.88 },
+      { word: 'MH/MUM/2026/04512', confidence: 0.85 }, { word: 'Owner:', confidence: 0.93 },
+      { word: 'Godrej', confidence: 0.78 }, { word: 'Properties', confidence: 0.82 },
+      { word: 'Ltd', confidence: 0.88 },
       { word: 'No', confidence: 0.97 }, { word: 'encumbrances', confidence: 0.65 },
       { word: 'found.', confidence: 0.91 },
     ],
@@ -299,20 +303,21 @@ const MOCK_ATTACHMENTS: Attachment[] = [
     size: '320 KB',
     sizeBytes: 327680,
     uploadedAt: '2026-04-27',
-    uploadedBy: 'John Smith',
+    uploadedBy: 'Rajesh Kumar',
     avStatus: 'CLEAN',
     avVerdict: 'NOOP_CLEAN',
     documentType: 'VALUATION_REPORT',
     docTypeConfidence: 0.93,
-    ocrText: 'Valuation Order Form\n\nLoan Reference: LN-2026-00451\nProperty: 123 Main St, Sydney NSW 2000\nValuation Type: Full',
+    ocrText: 'Valuation Order Form\n\nLoan Reference: LN-2026-00451\nProperty: 42 MG Road, Andheri West, Mumbai 400053\nValuation Type: Full',
     wordConfidences: [
       { word: 'Valuation', confidence: 0.96 }, { word: 'Order', confidence: 0.94 },
       { word: 'Form', confidence: 0.98 }, { word: 'Loan', confidence: 0.93 },
       { word: 'Reference:', confidence: 0.89 }, { word: 'LN-2026-00451', confidence: 0.62 },
-      { word: 'Property:', confidence: 0.91 }, { word: '123', confidence: 0.99 },
-      { word: 'Main', confidence: 0.92 }, { word: 'St,', confidence: 0.87 },
-      { word: 'Sydney', confidence: 0.95 }, { word: 'NSW', confidence: 0.97 },
-      { word: '2000', confidence: 0.99 }, { word: 'Valuation', confidence: 0.94 },
+      { word: 'Property:', confidence: 0.91 }, { word: '42', confidence: 0.99 },
+      { word: 'MG', confidence: 0.92 }, { word: 'Road,', confidence: 0.87 },
+      { word: 'Andheri', confidence: 0.91 }, { word: 'West,', confidence: 0.90 },
+      { word: 'Mumbai', confidence: 0.95 }, { word: '400053', confidence: 0.99 },
+      { word: 'Valuation', confidence: 0.94 },
       { word: 'Type:', confidence: 0.90 }, { word: 'Full', confidence: 0.96 },
     ],
     downloadUrl: '#',
@@ -644,7 +649,13 @@ const CaseDetailPage = () => {
             <CaseStatusBadge status={caseData.status} />
             <PriorityIndicator priority={caseData.priority} showLabel />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {caseData.classification.confidenceBand === 'GREEN' && (
+              <Badge className="border border-green-200 bg-green-100 text-green-700">
+                <CheckCircle className="mr-1 h-3.5 w-3.5" />
+                Auto-classified — no action needed
+              </Badge>
+            )}
             {!demo && (
               <>
                 <Button
@@ -1495,6 +1506,34 @@ function OverviewTab({ caseData }: { caseData: CaseData }) {
 
   return (
     <div className="grid grid-cols-2 gap-5">
+      {/* Original Email — the raw ingested message, so the classification can be verified */}
+      <Card className="col-span-2">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-[0.95rem]">
+            <MessageSquare className="mr-2 inline h-4 w-4" />
+            Original Email
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {caseData.emailBody || caseData.emailSubject ? (
+            <div className="flex flex-col gap-2">
+              {caseData.emailFrom && (
+                <div className="text-xs text-slate-400">
+                  From: <span className="text-slate-600">{caseData.emailFrom}</span>
+                </div>
+              )}
+              {caseData.emailSubject && (
+                <div className="text-sm font-medium text-slate-700">{caseData.emailSubject}</div>
+              )}
+              <pre className="whitespace-pre-wrap rounded-md bg-slate-50 p-3 font-sans text-sm text-slate-700">
+                {caseData.emailBody || '(no message body)'}
+              </pre>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-400">Original email not available for this case.</p>
+          )}
+        </CardContent>
+      </Card>
       {/* Classification Details */}
       <Card>
         <CardHeader className="pb-2">
